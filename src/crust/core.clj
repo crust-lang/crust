@@ -1,6 +1,14 @@
 (ns crust.core)
 
-(defn foo
-  "I don't do a whole lot."
-  [x]
-  (println x "Hello, World!"))
+(defmulti emit :op)
+(defmethod emit :const [ast] 
+	(pr-str (:val ast)))
+
+(defmethod emit :if [ast] 
+	(str "if " (emit (:test ast)) " { " 
+       (emit (:then ast)) 
+       " }"
+       (when-let [else (:else ast)]
+         (str " else { "
+            (emit else)
+            " }"))))
