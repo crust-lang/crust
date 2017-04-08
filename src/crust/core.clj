@@ -2,13 +2,13 @@
 
 (defmulti emit :op)
 (defmethod emit :const [ast] 
-	(pr-str (:val ast)))
+  (if (= (:type ast) :nil)
+    "()"
+    (pr-str (:val ast))))
 
 (defmethod emit :if [ast] 
-	(str "if " (emit (:test ast)) " { " 
+  (str "if " (emit (:test ast)) " { " 
        (emit (:then ast)) 
-       " }"
-       (when-let [else (:else ast)]
-         (str " else { "
-            (emit else)
-            " }"))))
+       " } else { "
+       (emit (:else ast))
+       " }"))
