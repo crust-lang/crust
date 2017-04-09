@@ -10,7 +10,10 @@
     (is (= "1" (emit (jv/analyze 1)))))
 
   (testing "special forms"
-    (is (= "if true { 1 } else { () }" (emit (jv/analyze '(if true 1)))))
-    (is (= "if true { 1 } else { 2 }" (emit (jv/analyze '(if true 1 2)))))
-    (is (= "{ if true { 1 } else { 2 }; if false { 1 } else { 2 } }"
-           (emit (jv/analyze '(do (if true 1 2) (if false 1 2))))))))
+    (testing "if"
+      (is (= "if true { 1 } else { () }" (emit (jv/analyze '(if true 1)))))
+      (is (= "if true { 1 } else { 2 }" (emit (jv/analyze '(if true 1 2))))))
+
+    (testing "do"
+      (is (= "{ if true { 1 } else { 2 }; if false { 1 } else { 2 } }"
+             (emit (jv/analyze '(do (if true 1 2) (if false 1 2)))))))))
