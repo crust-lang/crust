@@ -34,6 +34,10 @@
       name
       (str/replace #"[-.+?!#$%&*]" "")))
 
+(defmethod emit :binding
+  [{:keys [name]}]
+  (rustify name))
+
 (defmethod emit :local
   [{:keys [name]}]
   (rustify name))
@@ -41,7 +45,7 @@
 (defmethod emit :fn-method
   [{:keys [params body]}]
   (str
-   "|" (str/join "," (map #(rustify (:name %)) params)) "| { "
+   "|" (str/join "," (map emit params)) "| { "
    (emit body)
    " }"))
 
