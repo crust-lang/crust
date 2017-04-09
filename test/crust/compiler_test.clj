@@ -23,4 +23,8 @@
              (emit (jv/analyze '(fn [x] x)))))
 
       (is (= "|x__0,y__0| { x__0 }"
-             (emit (jv/analyze '(fn [x y] x))))))))
+             (emit (jv/analyze '(fn [x y] x))))))
+
+    (testing "let"
+      (is (= "{ let x__0 = 10; x__0 }"
+             (emit (jv/analyze '(let [x 10] x))))))))

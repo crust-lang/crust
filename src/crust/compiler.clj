@@ -16,11 +16,12 @@
   [{:keys [form]}]
   (emit-constant form))
 
-(defmethod emit :if [ast]
-  (str "if " (emit (:test ast)) " { "
-       (emit (:then ast))
+(defmethod emit :if
+  [{:keys [test then else]}]
+  (str "if " (emit test) " { "
+       (emit then)
        " } else { "
-       (emit (:else ast))
+       (emit else)
        " }"))
 
 (defn emit-body [statements ret]
@@ -35,8 +36,12 @@
       (str/replace #"[-.+?!#$%&*]" "")))
 
 (defmethod emit :binding
-  [{:keys [name]}]
-  (rustify name))
+  [{:keys [name init]}]
+  (str
+   (rustify name)
+   (if init
+     (str " = " (emit init))
+     "")))
 
 (defmethod emit :local
   [{:keys [name]}]
@@ -56,3 +61,14 @@
 (defmethod emit :do
   [{:keys [statements ret]}]
   (str "{ " (emit-body statements ret) " }"))
+
+(defmethod emit :let
+  [{:keys [bindings body]}]
+  (let [bs (map (fn [binding]
+                  (str "let " (emit binding) ";"))
+                bindings)]
+    (str "{ "
+         (apply str bs)
+         " "
+         (emit body)
+         " }")))
