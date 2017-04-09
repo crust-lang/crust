@@ -29,10 +29,6 @@
                       (keep identity)
                       (map emit))))
 
-(defmethod emit :do
-  [{:keys [statements ret]}]
-  (str "{ " (emit-body statements ret) " }"))
-
 (defn rustify [s]
   (-> s
       name
@@ -52,3 +48,7 @@
 (defmethod emit :fn
   [{:keys [methods]}]
   (emit (first methods)))
+
+(defmethod emit :do
+  [{:keys [statements ret]}]
+  (str "{ " (emit-body statements ret) " }"))
