@@ -12,9 +12,6 @@
 
 (defmulti emit :op)
 
-(defmethod emit :do [ast]
-  (str "{ " (str/join "; " (map emit (conj (:statements ast) (:ret ast)))) " }"))
-
 (defmethod emit :const
   [{:keys [form]}]
   (emit-constant form))
@@ -25,3 +22,33 @@
        " } else { "
        (emit (:else ast))
        " }"))
+
+(defn emit-body [statements ret]
+  (str/join "; " (->> ret
+                      (conj statements)
+                      (keep identity)
+                      (map emit))))
+
+(defmethod emit :do
+  [{:keys [statements ret]}]
+  (str "{ " (emit-body statements ret) " }"))
+
+(defn rustify [s]
+  (-> s
+      name
+      (str/replace #"[-.+?!#$%&*]" "")))
+
+(defmethod emit :local
+  [{:keys [name]}]
+  (rustify name))
+
+(defmethod emit :fn-method
+  [{:keys [params body]}]
+  (str
+   "|" (str/join "," (map #(rustify (:name %)) params)) "| { "
+   (emit body)
+   " }"))
+
+(defmethod emit :fn
+  [{:keys [methods]}]
+  (emit (first methods)))

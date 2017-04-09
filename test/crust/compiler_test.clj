@@ -16,4 +16,11 @@
 
     (testing "do"
       (is (= "{ if true { 1 } else { 2 }; if false { 1 } else { 2 } }"
-             (emit (jv/analyze '(do (if true 1 2) (if false 1 2)))))))))
+             (emit (jv/analyze '(do (if true 1 2) (if false 1 2)))))))
+
+    (testing "fn"
+      (is (= "|x__0| { x__0 }"
+             (emit (jv/analyze '(fn [x] x)))))
+
+      (is (= "|x__0,y__0| { x__0 }"
+             (emit (jv/analyze '(fn [x y] x))))))))
