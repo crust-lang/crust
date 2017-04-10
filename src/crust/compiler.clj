@@ -76,3 +76,7 @@
 (defmethod emit :invoke
   [{:keys [fn args]}]
   (str (emit fn) "(" (str/join "," (map emit args)) ")"))
+
+(defmethod emit :set!
+  [{:keys [target val]}]
+  (str (emit target) " = " (emit val) ";"))

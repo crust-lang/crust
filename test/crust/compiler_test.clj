@@ -32,4 +32,9 @@
     (testing "invoke"
       (is (= "{ let id__0 = |x__0| { x__0 }; id__0(()) }"
              (emit (jv/analyze '(let [id (fn [x] x)]
-                                  (id nil)))))))))
+                                  (id nil)))))))
+
+    (testing "set!"
+      #_(is (= "{ let mut x__0 = 10; x = 5; }"
+             (emit (jv/analyze '(let [^:mut x 10]
+                                  (set! x 5)))))))))
