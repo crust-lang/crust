@@ -3,7 +3,7 @@
   (:require [clojure.tools.analyzer :as ana]
 
             [clojure.tools.analyzer
-             [env :as env :refer [*env*]]
+             [env :as env]
              [passes :refer [schedule]]
              [utils :as utils]]
 
@@ -19,23 +19,8 @@
   (into ana/specials
         '#{clojure.core/ns clojure.core/import* deftype* mod*}))
 
-(defn build-ns-map []
-  (into {} (mapv #(vector (ns-name %)
-                          {:mappings (merge (ns-map %) {'in-ns #'clojure.core/in-ns
-                                                        'ns    #'clojure.core/ns})
-                           :aliases  (reduce-kv (fn [a k v] (assoc a k (ns-name v)))
-                                                {} (ns-aliases %))
-                           :ns       (ns-name %)})
-                 (all-ns))))
-
-(defn update-ns-map! []
-  ((get (env/deref-env) :update-ns-map! #())))
-
 (defn global-env []
-  (atom {:namespaces     (build-ns-map)
-
-         :update-ns-map! (fn update-ns-map! []
-                           (swap! *env* assoc-in [:namespaces] (build-ns-map)))}))
+  (atom {:namespaces (atom {})}))
 
 (defn empty-env
   "Returns an empty env map"
@@ -146,7 +131,6 @@
                             #'*ns*              (:ns env)}
                            (:bindings opts))
        (env/ensure (global-env)
-         (doto (env/with-env (utils/mmerge (env/deref-env)
+         (env/with-env (utils/mmerge (env/deref-env)
                                      {:passes-opts (get opts :passes-opts default-passes-opts)})
-                 (run-passes (ana/analyze form env)))
-           (do (update-ns-map!)))))))
+           (run-passes (ana/analyze form env)))))))
