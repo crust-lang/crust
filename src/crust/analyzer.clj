@@ -125,9 +125,9 @@
                             #'ana/create-var    create-var
                             #'ana/parse         parse
                             #'ana/var?          var?
-                            ;; #'elides            (merge {:fn    #{:line :column :end-line :end-column :file :source}
-                            ;;                             :reify #{:line :column :end-line :end-column :file :source}}
-                            ;;                            elides)
+                            #'elides            (merge {:fn    #{:line :column :end-line :end-column :file :source}
+                                                        :reify #{:line :column :end-line :end-column :file :source}}
+                                                       elides)
                             #'*ns*              (:ns env)}
                            (:bindings opts))
        (env/ensure (global-env)
