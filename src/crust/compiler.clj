@@ -72,3 +72,7 @@
          " "
          (emit body)
          " }")))
+
+(defmethod emit :invoke
+  [{:keys [fn args]}]
+  (str (emit fn) "(" (str/join "," (map emit args)) ")"))

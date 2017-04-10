@@ -27,4 +27,9 @@
 
     (testing "let"
       (is (= "{ let x__0 = 10; x__0 }"
-             (emit (jv/analyze '(let [x 10] x))))))))
+             (emit (jv/analyze '(let [x 10] x))))))
+
+    (testing "invoke"
+      (is (= "{ let id__0 = |x__0| { x__0 }; id__0(()) }"
+             (emit (jv/analyze '(let [id (fn [x] x)]
+                                  (id nil)))))))))
