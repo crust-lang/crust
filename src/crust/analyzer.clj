@@ -128,6 +128,9 @@
                             #'elides            (merge {:fn    #{:line :column :end-line :end-column :file :source}
                                                         :reify #{:line :column :end-line :end-column :file :source}}
                                                        elides)
+                            ;; TODO: this used to return a "real"
+                            ;; clojure ns, unclear what this should be
+                            ;; now
                             #'*ns*              (:ns env)}
                            (:bindings opts))
        (env/ensure (global-env)
