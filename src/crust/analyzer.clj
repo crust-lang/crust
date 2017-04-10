@@ -37,7 +37,7 @@
   [form env]
   (ana/-parse form env))
 
-(defmethod parse 'clojure.core/ns
+(defmethod parse 'ns
   [form env]
   {:op   :ns
    :env  env
