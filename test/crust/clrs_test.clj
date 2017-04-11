@@ -74,3 +74,10 @@
            (sut/emits (sut/analyze test-expr-env '(if true 1 2)))))
     (is (= "if false {\n\tclrs.test.x} else {\n\tclrs.test.y}\n"
            (sut/emits (sut/analyze test-expr-env '(if false x y)))))))
+
+(deftest emit-def-test
+  (testing "def"
+    (is (= "static x: u8 = 10;\n"
+           (sut/emits (sut/analyze test-expr-env '(def ^u8 x 10)))))
+    (is (= "static baz: i32 = -42;\n"
+           (sut/emits (sut/analyze test-expr-env '(def ^i32 baz -42)))))))

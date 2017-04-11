@@ -77,10 +77,17 @@
                       (emits else)
                 "}\n"))))
 
+(defmethod emit :def
+  [{:keys [name init env type]}]
+  (when init
+    (print (str "static " name ": " type " = " (emits init)))
+    (when-not (= :expr (:context env)) (print ";\n"))))
+
+
 ;; Parsing
 
 (def specials
-  '#{if})
+  '#{if def})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -99,6 +106,29 @@
     {:env env :op :if :form form
      :test test-expr :then then-expr :else else-expr
      :children [:test :then :else]}))
+
+(defmethod parse 'def
+  [op env form _name]
+  (let [pfn (fn
+              ([_ sym] {:sym sym})
+              ([_ sym init] {:sym sym :init init})
+              ([_ sym doc init] {:sym sym :doc doc :init init}))
+        args (apply pfn form)
+        sym (:sym args)]
+    (assert (not (namespace sym)) "Can't def ns-qualified name")
+    (assert (contains? (meta sym) :tag) "Must specify type for a static def")
+    (let [name (name sym)
+          init-expr (when (contains? args :init)
+                      (disallowing-recur
+                       (analyze (assoc env :context :ctx/expr) (:init args) sym)))]
+      (merge {:env env
+              :op :def
+              :type (:tag (meta sym))
+              :form form
+              :name name
+              :doc (:doc args)
+              :init init-expr}
+             (when init-expr {:children [:init]})))))
 
 (defn analyze-invoke
   [env [f & args]]
