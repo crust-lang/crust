@@ -118,7 +118,7 @@
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let*})
+  '#{if def fn* do let* loop})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -243,6 +243,10 @@
 (defmethod parse 'let*
   [op encl-env form _]
   (analyze-let encl-env form false))
+
+(defmethod parse 'loop
+  [op encl-env form _]
+  (analyze-let encl-env form true))
 
 (defn analyze-invoke
   [env [f & args]]

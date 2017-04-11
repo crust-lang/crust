@@ -137,3 +137,8 @@
     (testing "prints types when they're hinted"
       (is (matches #"\{\n\tlet (x__\d+): u8 = 1;\n\n\1\n\}"
                    (emits-expr '(let* [^u8 x 1] x)))))))
+
+(deftest emit-loop-test
+  (testing "loop"
+    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
+                 (emits-expr '(loop [x 1] x))))))
