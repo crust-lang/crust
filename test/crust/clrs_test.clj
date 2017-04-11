@@ -81,3 +81,11 @@
            (sut/emits (sut/analyze test-expr-env '(def ^u8 x 10)))))
     (is (= "static baz: i32 = -42;\n"
            (sut/emits (sut/analyze test-expr-env '(def ^i32 baz -42)))))))
+
+(deftest emit-fn-test
+  (testing "fn"
+    (is (= "|| {\n\treturn 1;\n}\n"
+           (sut/emits (sut/analyze test-expr-env '(fn* [] 1)))))
+    (is (= "|pay_attention| {\n\treturn pay_attention;\n}\n"
+           (sut/emits (sut/analyze test-expr-env '(fn* [pay_attention]
+                                                       pay_attention)))))))

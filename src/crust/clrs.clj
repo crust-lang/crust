@@ -83,11 +83,22 @@
     (print (str "static " name ": " type " = " (emits init)))
     (when-not (= :expr (:context env)) (print ";\n"))))
 
+(defmethod emit :fn
+  [{:keys [name params statements ret env recurs]}]
+  ;;fn statements get erased, serve no purpose and can pollute scope if named
+  (when-not (= :statement (:context env))
+    (emit-wrap env
+               (print (str "|" (apply str (interpose "," params)) "| {\n\t"))
+               (when recurs (print "loop {\n"))
+               (emit-block :return statements ret)
+               (when recurs (print "break;\n}\n"))
+               (print "}\n"))))
+
 
 ;; Parsing
 
 (def specials
-  '#{if def})
+  '#{if def fn*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -129,6 +140,43 @@
               :doc (:doc args)
               :init init-expr}
              (when init-expr {:children [:init]})))))
+
+(defn analyze-block
+  "returns {:statements .. :ret .. :children ..}"
+  [env exprs]
+  (let [statements (disallowing-recur
+                    (seq (map #(analyze (assoc env :context :ctx/statement) %) (butlast exprs))))
+        ret (if (<= (count exprs) 1)
+              (analyze env (first exprs))
+              (analyze (assoc env :context (if (= :ctx/statement (:context env))
+                                             :ctx/statement
+                                             :ctx/return))
+                       (last exprs)))]
+    {:statements statements :ret ret :children [:statements :ret]}))
+
+(defmethod parse 'fn*
+  [op env [_ & args] name]
+  (let [name (if (symbol? (first args))
+               (first args)
+               name)
+        meths (if (symbol? (first args))
+                (next args)
+                args)
+        ;;turn (fn [] ...) into (fn ([]...))
+        meths (if (vector? (first meths)) (list meths) meths)
+        ;;todo, merge meths, switch on arguments.length
+        meth (first meths)
+        params (first meth)
+        ;;todo, variadics
+        params (remove '#{&} params)
+        body (next meth)
+        locals (reduce (fn [m name] (assoc m name {:name name})) (:locals env) params)
+        recur-frame {:names (vec params) :flag (atom nil)}
+        block (binding [*recur-frame* recur-frame]
+                (analyze-block (assoc env :context :ctx/return :locals locals) body))]
+    (assert (= 1 (count meths)) "Arity overloading not yet supported")
+    (merge {:env env :op :fn :name name :meths meths :params params :recurs @(:flag recur-frame)} block)))
+
 
 (defn analyze-invoke
   [env [f & args]]
