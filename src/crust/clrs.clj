@@ -68,10 +68,10 @@
 (defn analyze-invoke
   [env [f & args]]
   (disallowing-recur
-   (let [enve (assoc env :context :expr)
+   (let [enve (assoc env :context :ctx/expr)
          fexpr (analyze enve f)
-         argexprs (vec (map #(analyze enve %) args))]
-     {:env env :op :invoke :f fexpr :args argexprs :children (conj argexprs fexpr)})))
+         argexprs (mapv #(analyze enve %) args)]
+     {:env env :op :invoke :f fexpr :args argexprs :children [:args :f]})))
 
 (defn analyze-symbol
   "Finds the var associated with sym"
@@ -98,7 +98,7 @@
 
 (def empty-env
   {:ns 'clrs.user
-   :context :return
+   :context :ctx/return
    :locals {}})
 
 (defn analyze
