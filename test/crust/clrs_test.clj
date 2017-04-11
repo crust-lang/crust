@@ -67,3 +67,10 @@
            (sut/emits (sut/analyze test-expr-env '(foo x)))))
     (is (= "clrs.test.bar(clrs.test.y)"
            (sut/emits (sut/analyze test-expr-env '(bar y)))))))
+
+(deftest emit-if-test
+  (testing "if"
+    (is (= "if true {\n\t1} else {\n\t2}\n"
+           (sut/emits (sut/analyze test-expr-env '(if true 1 2)))))
+    (is (= "if false {\n\tclrs.test.x} else {\n\tclrs.test.y}\n"
+           (sut/emits (sut/analyze test-expr-env '(if false x y)))))))

@@ -68,11 +68,19 @@
                          (apply str (interpose "," (map emits args)))
                          ")"))))
 
+(defmethod emit :if
+  [{:keys [test then else env]}]
+  (let [context (:context env)]
+    (print (str "if " (emits test) " {\n\t"
+                      (emits then)
+                "} else {\n\t"
+                      (emits else)
+                "}\n"))))
 
 ;; Parsing
 
 (def specials
-  '#{})
+  '#{if})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -82,6 +90,15 @@
 (declare analyze)
 
 (defmulti parse (fn [op & rest] op))
+
+(defmethod parse 'if
+  [op env [_ test then else :as form] name]
+  (let [test-expr (disallowing-recur (analyze (assoc env :context :ctx/expr) test))
+        then-expr (analyze env then)
+        else-expr (analyze env else)]
+    {:env env :op :if :form form
+     :test test-expr :then then-expr :else else-expr
+     :children [:test :then :else]}))
 
 (defn analyze-invoke
   [env [f & args]]
