@@ -86,7 +86,7 @@
 (defmethod emit :fn
   [{:keys [name params statements ret env recurs]}]
   ;;fn statements get erased, serve no purpose and can pollute scope if named
-  (when-not (= :statement (:context env))
+  (when-not (= :ctx/statement (:context env))
     (emit-wrap env
                (print (str "|" (apply str (interpose "," params)) "| {\n\t"))
                (when recurs (print "loop {\n"))
@@ -94,11 +94,18 @@
                (when recurs (print "break;\n}\n"))
                (print "}\n"))))
 
+(defmethod emit :do
+  [{:keys [statements ret env]}]
+  (let [context (:context env)]
+    (when statements (print "{\n"))
+    (emit-block context statements ret)
+    (when statements (print "}\n"))))
+
 
 ;; Parsing
 
 (def specials
-  '#{if def fn*})
+  '#{if def fn* do})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -177,6 +184,10 @@
     (assert (= 1 (count meths)) "Arity overloading not yet supported")
     (merge {:env env :op :fn :name name :meths meths :params params :recurs @(:flag recur-frame)} block)))
 
+(defmethod parse 'do
+  [op env [_ & exprs] _]
+  (merge {:env env :op :do}
+         (analyze-block env exprs)))
 
 (defn analyze-invoke
   [env [f & args]]

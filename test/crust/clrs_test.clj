@@ -90,4 +90,21 @@
     (is (= "|| {\n\t1\n}\n"
            (emits-expr '(fn* [] 1))))
     (is (= "|pay_attention| {\n\tpay_attention\n}\n"
-           (emits-expr '(fn* [pay_attention] pay_attention))))))
+           (emits-expr '(fn* [pay_attention] pay_attention)))))
+
+  (testing "fn statements are elided"
+    (is (= "{\n\t\t1\n}\n"
+           (emits-expr '(do
+                          (fn* [x] x)
+                          1))))))
+
+(deftest emit-do-test
+  (testing "do"
+    (is (= "{\n\tclrs.test.foo(10);\n\t1\n}\n"
+           (emits-expr '(do (foo 10) 1))))
+    (is (= "{\n\tclrs.test.foo(10);\n\t1\n}\n"
+           (emits-expr '(do (foo 10) 1))))
+
+    (testing "do statements disappear with only one body element"
+      (is (= "1"
+             (emits-expr '(do 1)))))))
