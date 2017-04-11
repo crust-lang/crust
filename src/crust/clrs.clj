@@ -114,11 +114,22 @@
     (when loop (print "break;\n}\n"))
     (print "}")))
 
+(defmethod emit :recur
+  [{:keys [frame exprs env]}]
+  (let [temps (vec (take (count exprs) (repeatedly gensym)))
+        names (:names frame)]
+    (print "{\n")
+    (dotimes [i (count exprs)]
+      (print (str "\tlet " (temps i) " = " (emits (exprs i)) ";\n")))
+    (dotimes [i (count exprs)]
+      (print (str (names i) " = " (temps i) ";\n")))
+    (print "continue;\n")
+    (print "}\n")))
 
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop})
+  '#{if def fn* do let* loop recur})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -247,6 +258,15 @@
 (defmethod parse 'loop
   [op encl-env form _]
   (analyze-let encl-env form true))
+
+(defmethod parse 'recur
+  [op env [_ & exprs] _]
+  (assert *recur-frame* "Can't recur here")
+  (assert (= (count exprs) (count (:names *recur-frame*))) "recur argument count mismatch")
+  (reset! (:flag *recur-frame*) true)
+  (assoc {:env env :op :recur}
+         :frame *recur-frame*
+         :exprs (disallowing-recur (vec (map #(analyze (assoc env :context :ctx/expr) %) exprs)))))
 
 (defn analyze-invoke
   [env [f & args]]

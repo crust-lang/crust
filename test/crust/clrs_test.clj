@@ -142,3 +142,12 @@
   (testing "loop"
     (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
                  (emits-expr '(loop [x 1] x))))))
+
+(deftest emit-recur-test
+  (testing "fn-recur"
+    (is (matches #"\|x\| \{\n\tloop \{\n\{\n\tlet ([\w\d_]+) = 1;\nx = \1;\ncontinue;\n\}\nbreak;\n\}\n\}\n"
+                 (emits-expr '(fn* [x] (recur 1))))))
+
+  (testing "loop-recur"
+    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
+                 (emits-expr '(loop [x 1] x))))))
