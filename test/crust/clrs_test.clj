@@ -122,3 +122,18 @@
                            {:type :pass}
                            {:type :fail})))
        matches?#)))
+
+(deftest emit-let-test
+  (testing "let"
+    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\n\1\n\}"
+                 (emits-expr '(let* [x 1] x))))
+    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\tlet (y__\d+) = 20;\n\n\1\n\}"
+                 (emits-expr '(let* [x 1 y 20] x))))
+    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\tlet (y__\d+) = 20;\n\n\{\n\tclrs.test.foo\(\1,\2\);\n\t\1\n\}\n\}"
+                 (emits-expr '(let* [x 1 y 20]
+                                (foo x y)
+                                x))))
+
+    (testing "prints types when they're hinted"
+      (is (matches #"\{\n\tlet (x__\d+): u8 = 1;\n\n\1\n\}"
+                   (emits-expr '(let* [^u8 x 1] x)))))))

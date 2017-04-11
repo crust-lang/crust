@@ -101,11 +101,24 @@
     (emit-block context statements ret)
     (when statements (print "}\n"))))
 
+(defmethod emit :let
+  [{:keys [bindings body env loop]}]
+  (let [context (:context env)
+        bs (map (fn [{:keys [name init type]}]
+                  (str "\tlet " name (when type (str ": " type))
+                       " = " (emits init) ";\n"))
+                bindings)]
+    (print (str "{\n" (apply str bs) "\n"))
+    (when loop (print "loop {\n"))
+    (emit body)
+    (when loop (print "break;\n}\n"))
+    (print "}")))
+
 
 ;; Parsing
 
 (def specials
-  '#{if def fn* do})
+  '#{if def fn* do let*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -188,6 +201,48 @@
   [op env [_ & exprs] _]
   (merge {:env env :op :do}
          (analyze-block env exprs)))
+
+(defn analyze-let
+  [encl-env [_ bindings & exprs :as form] is-loop]
+  (assert (and (vector? bindings) (even? (count bindings)))
+          "bindings must be vector of even number of elements")
+  (let [context (:context encl-env)
+        [bes env]
+        (disallowing-recur
+         (loop [bes []
+                env (assoc encl-env :context :ctx/expr)
+                bindings (seq (partition 2 bindings))]
+           (if-let [[name init] (first bindings)]
+             (do
+               (assert (not (or (namespace name) (.contains (str name) ".")))
+                       (str "Invalid local name: " name))
+               (let [init-expr (analyze env init)
+                     be {:name (gensym (str name "__"))
+                         :init init-expr
+                         :type (:tag (meta name))}]
+                 (recur (conj bes be)
+                        (assoc-in env [:locals name] be)
+                        (next bindings))))
+             [bes env])))
+        recur-frame (when is-loop {:names (vec (map :name bes)) :flag (atom nil)})
+        body
+        (binding [*recur-frame* (or recur-frame *recur-frame*)]
+          (analyze (assoc env :context (if (= :ctx/expr context)
+                                         :ctx/return
+                                         context))
+                   ;; Wrap the body exprs in a synthetic do-block
+                   (apply list 'do exprs)))]
+    {:env encl-env
+     :op :let
+     :loop is-loop
+     :bindings bes
+     :body body
+     :form form
+     :children [:bindings :body]}))
+
+(defmethod parse 'let*
+  [op encl-env form _]
+  (analyze-let encl-env form false))
 
 (defn analyze-invoke
   [env [f & args]]
