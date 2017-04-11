@@ -84,22 +84,26 @@
     (when-not (= :expr (:context env)) (print ";\n"))))
 
 (defmethod emit :fn
-  [{:keys [name params statements ret env recurs]}]
+  [{:keys [name params body env recurs]}]
   ;;fn statements get erased, serve no purpose and can pollute scope if named
   (when-not (= :ctx/statement (:context env))
     (emit-wrap env
                (print (str "|" (apply str (interpose "," params)) "| {\n\t"))
                (when recurs (print "loop {\n"))
-               (emit-block :return statements ret)
+               (emit body)
                (when recurs (print "break;\n}\n"))
                (print "}\n"))))
 
 (defmethod emit :do
   [{:keys [statements ret env]}]
-  (let [context (:context env)]
-    (when statements (print "{\n"))
-    (emit-block context statements ret)
-    (when statements (print "}\n"))))
+  (if statements
+    (do
+      (print "{\n")
+      (let [body (str "\t" (apply str (interpose "\t" (map emits statements)))
+                      "\t" (emits ret))]
+        (print body))
+      (print "}\n"))
+    (emit ret)))
 
 (defmethod emit :let
   [{:keys [bindings body env loop]}]
@@ -203,10 +207,18 @@
         body (next meth)
         locals (reduce (fn [m name] (assoc m name {:name name})) (:locals env) params)
         recur-frame {:names (vec params) :flag (atom nil)}
-        block (binding [*recur-frame* recur-frame]
-                (analyze-block (assoc env :context :ctx/return :locals locals) body))]
+        body (binding [*recur-frame* recur-frame]
+               (analyze (assoc env :context :ctx/return :locals locals)
+                        (apply list 'do body)))]
     (assert (= 1 (count meths)) "Arity overloading not yet supported")
-    (merge {:env env :op :fn :name name :meths meths :params params :recurs @(:flag recur-frame)} block)))
+    {:env env
+     :op :fn
+     :name name
+     :meths meths
+     :params params
+     :body body
+     :children [:body]
+     :recurs @(:flag recur-frame)}))
 
 (defmethod parse 'do
   [op env [_ & exprs] _]
