@@ -49,6 +49,71 @@
 
 (defmacro emit-wrap [env & body]
   `(let [env# ~env]
-     (when (= :return (:context env#)) (print "return "))
+     (when (= :ctx/return (:context env#)) (print "return "))
      ~@body
-     (when-not (= :expr (:context env#)) (print ";\n"))))
+     (when-not (= :ctx/expr (:context env#)) (print ";\n"))))
+
+(def specials
+  '#{})
+
+(def ^:dynamic *recur-frame* nil)
+
+(defmacro disallowing-recur [& body]
+  `(binding [*recur-frame* nil] ~@body))
+
+(declare analyze)
+
+(defmulti parse (fn [op & rest] op))
+
+(defn analyze-invoke
+  [env [f & args]]
+  (disallowing-recur
+   (let [enve (assoc env :context :expr)
+         fexpr (analyze enve f)
+         argexprs (vec (map #(analyze enve %) args))]
+     {:env env :op :invoke :f fexpr :args argexprs :children (conj argexprs fexpr)})))
+
+(defn analyze-symbol
+  "Finds the var associated with sym"
+  [env sym]
+  (let [ret {:env env :form sym}
+        lb (-> env :locals sym)]
+    (if lb
+      (assoc ret :op :var :info lb)
+      (assoc ret :op :var :info (resolve-var env sym)))))
+
+(defn get-expander [sym env]
+  (when-not (-> env :locals sym)
+    ))
+
+(defn analyze-seq
+  [env form name]
+  (let [op (first form)]
+    (assert (not (nil? op)) "Can't call nil")
+    (if (specials op)
+      (parse op env form name)
+      (if-let [mac (and (symbol? op) (get-expander op env))]
+        (analyze (apply mac (rest form)))
+        (analyze-invoke env form)))))
+
+(def empty-env
+  {:ns 'clrs.user
+   :context :return
+   :locals {}})
+
+(defn analyze
+  "Given an environment, a map containing {:locals (mapping of names to bindings), :context
+  (one of :statement, :expr, :return), :ns (a symbol naming the
+  compilation ns)}, and form, returns an expression object (a map
+  containing at least :form, :op and :env keys). If expr has any (immediately)
+  nested exprs, must have :children [exprs...] entry. This will
+  facilitate code walking without knowing the details of the op set."
+  ([env form] (analyze env form nil))
+  ([env form name]
+   (let [form (if (instance? clojure.lang.LazySeq form)
+                (or (seq form) ())
+                form)]
+     (cond
+       (symbol? form) (analyze-symbol env form)
+       (and (seq? form) (seq form)) (analyze-seq env form name)
+       :else {:op :constant :env env :form form}))))
