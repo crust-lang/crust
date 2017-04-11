@@ -108,3 +108,17 @@
     (testing "do statements disappear with only one body element"
       (is (= "1"
              (emits-expr '(do 1)))))))
+
+(defmethod clojure.test/assert-expr 'matches [msg re-and-form]
+  (let [re   (nth re-and-form 1)
+        form (nth re-and-form 2)]
+    `(let [re# ~re
+           result# ~form
+           matches?# (re-matches re# result#)]
+       (do-report (merge {:message ~msg
+                          :expected (list '~'to-match re# '~form)
+                          :actual (list '~'does-not-match re# result#)}
+                         (if matches?#
+                           {:type :pass}
+                           {:type :fail})))
+       matches?#)))
