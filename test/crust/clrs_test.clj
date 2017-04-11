@@ -32,60 +32,62 @@
     (is (= "clrs.user.foo"
            (sut/emits (sut/analyze test-expr-env 'clrs.user/foo))))))
 
+(defmacro emits-expr [form]
+  `(sut/emits (sut/analyze test-expr-env ~form)))
+
 (deftest emit-constant-test
   (testing "nil"
     (is (= "()"
-           (sut/emits (sut/analyze test-expr-env nil)))))
+           (emits-expr nil))))
 
   (testing "integers"
     (is (= "1"
-           (sut/emits (sut/analyze test-expr-env 1))))
+           (emits-expr 1)))
     (is (= "13"
-           (sut/emits (sut/analyze test-expr-env 13)))))
+           (emits-expr 13))))
 
   (testing "floating-point"
     (is (= "1.0"
-           (sut/emits (sut/analyze test-expr-env 1.0))))
+           (emits-expr 1.0)))
     (is (= "13.5"
-           (sut/emits (sut/analyze test-expr-env 13.5)))))
+           (emits-expr 13.5))))
 
   (testing "strings"
     (is (= "\"foo\""
-           (sut/emits (sut/analyze test-expr-env "foo"))))
+           (emits-expr "foo")))
     (is (= "\"bar\""
-           (sut/emits (sut/analyze test-expr-env "bar")))))
+           (emits-expr "bar"))))
 
   (testing "booleans"
     (is (= "true"
-           (sut/emits (sut/analyze test-expr-env true))))
+           (emits-expr true)))
     (is (= "false"
-           (sut/emits (sut/analyze test-expr-env false))))))
+           (emits-expr false)))))
 
 (deftest emit-invoke-test
   (testing "invocations"
     (is (= "clrs.test.foo(clrs.test.x)"
-           (sut/emits (sut/analyze test-expr-env '(foo x)))))
+           (emits-expr '(foo x))))
     (is (= "clrs.test.bar(clrs.test.y)"
-           (sut/emits (sut/analyze test-expr-env '(bar y)))))))
+           (emits-expr '(bar y))))))
 
 (deftest emit-if-test
   (testing "if"
     (is (= "if true {\n\t1} else {\n\t2}\n"
-           (sut/emits (sut/analyze test-expr-env '(if true 1 2)))))
+           (emits-expr '(if true 1 2))))
     (is (= "if false {\n\tclrs.test.x} else {\n\tclrs.test.y}\n"
-           (sut/emits (sut/analyze test-expr-env '(if false x y)))))))
+           (emits-expr '(if false x y))))))
 
 (deftest emit-def-test
   (testing "def"
     (is (= "static x: u8 = 10;\n"
-           (sut/emits (sut/analyze test-expr-env '(def ^u8 x 10)))))
+           (emits-expr '(def ^u8 x 10))))
     (is (= "static baz: i32 = -42;\n"
-           (sut/emits (sut/analyze test-expr-env '(def ^i32 baz -42)))))))
+           (emits-expr '(def ^i32 baz -42))))))
 
 (deftest emit-fn-test
   (testing "fn"
     (is (= "|| {\n\treturn 1;\n}\n"
-           (sut/emits (sut/analyze test-expr-env '(fn* [] 1)))))
+           (emits-expr '(fn* [] 1))))
     (is (= "|pay_attention| {\n\treturn pay_attention;\n}\n"
-           (sut/emits (sut/analyze test-expr-env '(fn* [pay_attention]
-                                                       pay_attention)))))))
+           (emits-expr '(fn* [pay_attention] pay_attention))))))
