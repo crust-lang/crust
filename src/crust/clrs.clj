@@ -53,6 +53,24 @@
      ~@body
      (when-not (= :ctx/expr (:context env#)) (print ";\n"))))
 
+(defmethod emit :var
+  [{:keys [info env] :as arg}]
+  (emit-wrap env (print (:name info))))
+
+(defmethod emit :constant
+  [{:keys [form env]}]
+  (emit-wrap env (emit-constant form)))
+
+(defmethod emit :invoke
+  [{:keys [f args env]}]
+  (emit-wrap env
+             (print (str (emits f) "("
+                         (apply str (interpose "," (map emits args)))
+                         ")"))))
+
+
+;; Parsing
+
 (def specials
   '#{})
 
