@@ -49,9 +49,9 @@
 
 (defmacro emit-wrap [env & body]
   `(let [env# ~env]
-     (when (= :ctx/return (:context env#)) (print "return "))
      ~@body
-     (when-not (= :ctx/expr (:context env#)) (print ";\n"))))
+     (when (= :ctx/statement (:context env#)) (print ";"))
+     (when-not (= :ctx/expr (:context env#)) (print "\n"))))
 
 (defmethod emit :var
   [{:keys [info env] :as arg}]

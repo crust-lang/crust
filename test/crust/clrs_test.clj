@@ -26,7 +26,7 @@
            (sut/emits (sut/analyze test-expr-env 'x))))
     (is (= "clrs.test.y;\n"
            (sut/emits (sut/analyze test-stmnt-env 'y))))
-    (is (= "return clrs.test.z;\n"
+    (is (= "clrs.test.z\n"
            (sut/emits (sut/analyze test-ret-env 'z))))
 
     (is (= "clrs.user.foo"
@@ -87,7 +87,7 @@
 
 (deftest emit-fn-test
   (testing "fn"
-    (is (= "|| {\n\treturn 1;\n}\n"
+    (is (= "|| {\n\t1\n}\n"
            (emits-expr '(fn* [] 1))))
-    (is (= "|pay_attention| {\n\treturn pay_attention;\n}\n"
+    (is (= "|pay_attention| {\n\tpay_attention\n}\n"
            (emits-expr '(fn* [pay_attention] pay_attention))))))
