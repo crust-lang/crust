@@ -151,3 +151,9 @@
   (testing "loop-recur"
     (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
                  (emits-expr '(loop [x 1] x))))))
+
+(deftest emit-set!-test
+  (testing "set!"
+    (is (matches #"\{\n\tlet mut (x__\d+) = 10;\n\n\1 = 20\n\}"
+                 (emits-expr '(let* [^:mut x 10]
+                                (set! x 20)))))))

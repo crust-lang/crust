@@ -108,8 +108,11 @@
 (defmethod emit :let
   [{:keys [bindings body env loop]}]
   (let [context (:context env)
-        bs (map (fn [{:keys [name init type]}]
-                  (str "\tlet " name (when type (str ": " type))
+        bs (map (fn [{:keys [name init type mutable?]}]
+                  (str "\tlet "
+                       (when mutable? "mut ")
+                       name
+                       (when type (str ": " type))
                        " = " (emits init) ";\n"))
                 bindings)]
     (print (str "{\n" (apply str bs) "\n"))
@@ -130,10 +133,15 @@
     (print "continue;\n")
     (print "}\n")))
 
+(defmethod emit :set!
+  [{:keys [target val env]}]
+  (emit-wrap env (print (str (emits target) " = "(emits val)))))
+
+
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop recur})
+  '#{if def fn* do let* loop recur set!})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -293,6 +301,21 @@
     (if lb
       (assoc ret :op :var :info lb)
       (assoc ret :op :var :info (resolve-var env sym)))))
+
+(defmethod parse 'set!
+  [_ env [_ target val] _]
+  (assert (symbol? target) "set! target must be a symbol naming var")
+  (let [lb (-> env :locals target)]
+    (assert (:mutable? lb) "Can't set! a non-mutable binding"))
+  (disallowing-recur
+   (let [enve (assoc env :context :ctx/expr)
+         targetexpr (analyze-symbol enve target)
+         valexpr (analyze enve val)]
+     {:env env
+      :op :set!
+      :target targetexpr
+      :val valexpr
+      :children [:target :val]})))
 
 (defn analyze-invoke
   [env [f & args]]
