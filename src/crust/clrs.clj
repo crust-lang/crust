@@ -240,9 +240,11 @@
                (assert (not (or (namespace name) (.contains (str name) ".")))
                        (str "Invalid local name: " name))
                (let [init-expr (analyze env init)
+                     m (meta name)
                      be {:name (gensym (str name "__"))
                          :init init-expr
-                         :type (:tag (meta name))}]
+                         :type (:tag m)
+                         :mutable? (:mut m)}]
                  (recur (conj bes be)
                         (assoc-in env [:locals name] be)
                         (next bindings))))
@@ -278,15 +280,10 @@
   (reset! (:flag *recur-frame*) true)
   (assoc {:env env :op :recur}
          :frame *recur-frame*
-         :exprs (disallowing-recur (vec (map #(analyze (assoc env :context :ctx/expr) %) exprs)))))
-
-(defn analyze-invoke
-  [env [f & args]]
-  (disallowing-recur
-   (let [enve (assoc env :context :ctx/expr)
-         fexpr (analyze enve f)
-         argexprs (mapv #(analyze enve %) args)]
-     {:env env :op :invoke :f fexpr :args argexprs :children [:args :f]})))
+         :exprs (disallowing-recur
+                 (vec
+                  (map #(analyze (assoc env :context :ctx/expr) %)
+                       exprs)))))
 
 (defn analyze-symbol
   "Finds the var associated with sym"
@@ -296,6 +293,14 @@
     (if lb
       (assoc ret :op :var :info lb)
       (assoc ret :op :var :info (resolve-var env sym)))))
+
+(defn analyze-invoke
+  [env [f & args]]
+  (disallowing-recur
+   (let [enve (assoc env :context :ctx/expr)
+         fexpr (analyze enve f)
+         argexprs (mapv #(analyze enve %) args)]
+     {:env env :op :invoke :f fexpr :args argexprs :children [:args :f]})))
 
 (defn get-expander [sym env]
   (when-not (-> env :locals sym)
