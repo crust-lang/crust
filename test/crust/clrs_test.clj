@@ -152,6 +152,14 @@
     (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
                  (emits-expr '(loop [x 1] x))))))
 
+(deftest emit-new-test
+  (testing "new"
+    (is (= "clrs.test.Foo {}"
+           (emits-expr '(new Foo))))
+
+    (is (= "clrs.test.Foo {x: 1}"
+           (emits-expr '(new Foo x 1))))))
+
 (deftest emit-set!-test
   (testing "set!"
     (is (matches #"\{\n\tlet mut (x__\d+) = 10;\n\n\1 = 20\n\}"

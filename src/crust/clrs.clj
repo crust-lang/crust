@@ -134,6 +134,16 @@
     (print "continue;\n")
     (print "}\n")))
 
+(defmethod emit :new
+  [{:keys [ctor args env]}]
+  (emit-wrap env
+             (print (str (emits ctor) " {"
+                         (apply str
+                                (interpose ","
+                                           (map #(str (first %) ": " (emits (second %)))
+                                                args)))
+                         "}"))))
+
 (defmethod emit :set!
   [{:keys [target val env]}]
   (emit-wrap env (print (str (emits target) " = "(emits val)))))
@@ -148,7 +158,7 @@
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop recur set! ns})
+  '#{if def fn* do let* loop recur new set! ns})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -308,6 +318,16 @@
     (if lb
       (assoc ret :op :var :info lb)
       (assoc ret :op :var :info (resolve-var env sym)))))
+
+(defmethod parse 'new
+  [_ env [_ ctor & {:as args}] _]
+  (disallowing-recur
+   (let [enve (assoc env :context :ctx/expr)
+         ctorexpr (analyze enve ctor)
+         argexprs (zipmap
+                   (keys args)
+                   (map #(analyze enve %) (vals args)))]
+     {:env env :op :new :ctor ctorexpr :args argexprs :children [:args :ctor]})))
 
 (defmethod parse 'set!
   [_ env [_ target val] _]
