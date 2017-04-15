@@ -12,7 +12,7 @@
 
           ;;todo - resolve ns aliases when we have them
           (namespace sym)
-          (symbol (str (namespace sym) "." (name sym)))
+          (symbol (str (str/replace (namespace sym) #"\." "::") "::" (name sym)))
 
           (.contains s ".")
           (let [idx (.indexOf s ".")
@@ -23,8 +23,7 @@
               (symbol (str (:name lb) suffix))
               sym))
 
-          :else
-          (symbol (str (:ns env) "." (name sym))))]
+          :else sym)]
     {:name nm}))
 
 (defmulti emit-constant class)

@@ -22,14 +22,14 @@
 
 (deftest emit-var-test
   (testing "vars"
-    (is (= "clrs.test.x"
+    (is (= "x"
            (sut/emits (sut/analyze test-expr-env 'x))))
-    (is (= "clrs.test.y;\n"
+    (is (= "y;\n"
            (sut/emits (sut/analyze test-stmnt-env 'y))))
-    (is (= "clrs.test.z\n"
+    (is (= "z\n"
            (sut/emits (sut/analyze test-ret-env 'z))))
 
-    (is (= "clrs.user.foo"
+    (is (= "clrs::user::foo"
            (sut/emits (sut/analyze test-expr-env 'clrs.user/foo))))))
 
 (defmacro emits-expr [form]
@@ -66,16 +66,16 @@
 
 (deftest emit-invoke-test
   (testing "invocations"
-    (is (= "clrs.test.foo(clrs.test.x)"
+    (is (= "foo(x)"
            (emits-expr '(foo x))))
-    (is (= "clrs.test.bar(clrs.test.y)"
+    (is (= "bar(y)"
            (emits-expr '(bar y))))))
 
 (deftest emit-if-test
   (testing "if"
     (is (= "if true {\n\t1} else {\n\t2}\n"
            (emits-expr '(if true 1 2))))
-    (is (= "if false {\n\tclrs.test.x} else {\n\tclrs.test.y}\n"
+    (is (= "if false {\n\tx} else {\n\ty}\n"
            (emits-expr '(if false x y))))))
 
 (deftest emit-def-test
@@ -100,9 +100,9 @@
 
 (deftest emit-do-test
   (testing "do"
-    (is (= "{\n\tclrs.test.foo(10);\n\t1\n}\n"
+    (is (= "{\n\tfoo(10);\n\t1\n}\n"
            (emits-expr '(do (foo 10) 1))))
-    (is (= "{\n\tclrs.test.foo(10);\n\t1\n}\n"
+    (is (= "{\n\tfoo(10);\n\t1\n}\n"
            (emits-expr '(do (foo 10) 1))))
 
     (testing "do statements disappear with only one body element"
@@ -129,7 +129,7 @@
                  (emits-expr '(let* [x 1] x))))
     (is (matches #"\{\n\tlet (x__\d+) = 1;\n\tlet (y__\d+) = 20;\n\n\1\n\}"
                  (emits-expr '(let* [x 1 y 20] x))))
-    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\tlet (y__\d+) = 20;\n\n\{\n\tclrs.test.foo\(\1,\2\);\n\t\1\n\}\n\}"
+    (is (matches #"\{\n\tlet (x__\d+) = 1;\n\tlet (y__\d+) = 20;\n\n\{\n\tfoo\(\1,\2\);\n\t\1\n\}\n\}"
                  (emits-expr '(let* [x 1 y 20]
                                 (foo x y)
                                 x))))
@@ -154,10 +154,10 @@
 
 (deftest emit-new-test
   (testing "new"
-    (is (= "clrs.test.Foo {}"
+    (is (= "Foo {}"
            (emits-expr '(new Foo))))
 
-    (is (= "clrs.test.Foo {x: 1}"
+    (is (= "Foo {x: 1}"
            (emits-expr '(new Foo x 1))))))
 
 (deftest emit-set!-test
