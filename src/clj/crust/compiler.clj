@@ -192,6 +192,7 @@
           init-expr (when (contains? args :init)
                       (disallowing-recur
                        (analyze (assoc env :context :ctx/expr) (:init args) sym)))]
+      (swap! namespaces assoc-in [(-> env :ns :name) :defs sym] name)
       (merge {:env env
               :op :def
               :type (:tag (meta sym))
