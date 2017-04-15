@@ -157,3 +157,12 @@
     (is (matches #"\{\n\tlet mut (x__\d+) = 10;\n\n\1 = 20\n\}"
                  (emits-expr '(let* [^:mut x 10]
                                 (set! x 20)))))))
+
+(deftest emit-ns-test
+  (testing "ns"
+    (is (= ""
+           (emits-expr '(ns foo.bar))))
+
+    (is (= "use baz::bar;\n"
+           (emits-expr '(ns foo.bar
+                          :requires {baz.bar baz.bar}))))))

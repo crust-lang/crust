@@ -1,4 +1,5 @@
-(ns crust.clrs)
+(ns crust.clrs
+  (:require [clojure.string :as str]))
 
 (defonce namespaces (atom {}))
 
@@ -137,11 +138,17 @@
   [{:keys [target val env]}]
   (emit-wrap env (print (str (emits target) " = "(emits val)))))
 
+(defmethod emit :ns
+  [{:keys [name requires macros env]}]
+  (doseq [lib (map #(str/replace % #"\." "::")
+                   (vals requires))]
+    (println (str "use " lib ";"))))
+
 
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop recur set!})
+  '#{if def fn* do let* loop recur set! ns})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -316,6 +323,19 @@
       :target targetexpr
       :val valexpr
       :children [:target :val]})))
+
+(defmethod parse 'ns
+  [_ env [_ ns-name & {:keys [requires macros] :as params}] _]
+  (doseq [nsym (vals macros)]
+    (require nsym))
+  (let [deps (into requires
+                   (map (fn [[alias nsym]]
+                          [alias (find-ns nsym)])
+                        macros))]
+    (swap! namespaces #(-> %
+                           (assoc-in [ns-name :name] ns-name)
+                           (assoc-in [ns-name :deps] deps))))
+  (merge {:env env :op :ns :name ns-name} params))
 
 (defn analyze-invoke
   [env [f & args]]
