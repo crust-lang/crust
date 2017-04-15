@@ -1,5 +1,5 @@
-(ns crust.clrs-test
-  (:require [crust.clrs :as sut]
+(ns crust.compiler-test
+  (:require [crust.compiler :as sut]
             [clojure.test :refer :all]))
 
 (def test-env

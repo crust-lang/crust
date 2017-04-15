@@ -1,8 +1,8 @@
 (def project 'crust)
 (def version "0.1.0-SNAPSHOT")
 
-(set-env! :resource-paths #{"resources" "src"}
-          :source-paths   #{"test"}
+(set-env! :resource-paths #{"resources" "src/clj" "src/cljt"}
+          :source-paths   #{"test/clj" "test/cljt"}
           :dependencies   (template
                            [[org.clojure/clojure ~(clojure-version)]]))
 
