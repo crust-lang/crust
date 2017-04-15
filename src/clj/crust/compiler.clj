@@ -1,7 +1,8 @@
 (ns crust.compiler
   (:require [clojure.string :as str]))
 
-(defonce namespaces (atom {}))
+(defonce namespaces (atom '{clrs.core {:name clrs.core}
+                            clrs.user {:name clrs.user}}))
 
 (defn- resolve-var [env sym]
   (let [s (str sym)
@@ -379,7 +380,7 @@
         (analyze-invoke env form)))))
 
 (def empty-env
-  {:ns 'clrs.user
+  {:ns (@namespaces 'crust.user)
    :context :ctx/return
    :locals {}})
 

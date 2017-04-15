@@ -17,7 +17,7 @@
 
 (def test-expr-env
   (merge sut/empty-env
-         {:ns 'clrs.test
+         {:ns {:name 'clrs.test}
           :context :ctx/expr}))
 
 (deftest emit-var-test
