@@ -173,4 +173,4 @@
 
     (is (= "use baz::bar;\n"
            (emits-expr '(ns foo.bar
-                          :requires {baz.bar baz.bar}))))))
+                          (:require [baz.bar :as baz.bar])))))))

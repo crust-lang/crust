@@ -149,7 +149,7 @@
   (emit-wrap env (print (str (emits target) " = "(emits val)))))
 
 (defmethod emit :ns
-  [{:keys [name requires macros env]}]
+  [{:keys [name requires requires-macros env] :as all}]
   (doseq [lib (map #(str/replace % #"\." "::")
                    (vals requires))]
     (println (str "use " lib ";"))))
@@ -346,17 +346,25 @@
       :children [:target :val]})))
 
 (defmethod parse 'ns
-  [_ env [_ ns-name & {:keys [requires macros] :as params}] _]
-  (doseq [nsym (vals macros)]
-    (require nsym))
-  (let [deps (into requires
-                   (map (fn [[alias nsym]]
-                          [alias (find-ns nsym)])
-                        macros))]
+  [_ env [_ ns-name & args] _]
+  (let [{requires :require requires-macros :require-macros :as all}
+        (reduce (fn [m [k & libs]]
+                  (assoc m k (into {}
+                                   (map (fn [[lib as alias]]
+                                          (assert (and alias (= :as as)) "Only [lib.ns :as alias] form is supported")
+                                          [alias lib])
+                                        libs))))
+                {} args)]
+    (doseq [nsym (vals requires-macros)]
+      (require nsym))
     (swap! namespaces #(-> %
                            (assoc-in [ns-name :name] ns-name)
-                           (assoc-in [ns-name :deps] deps))))
-  (merge {:env env :op :ns :name ns-name} params))
+                           (assoc-in [ns-name :requires] requires)
+                           (assoc-in [ns-name :requires-macros]
+                                     (into {} (map (fn [[alias nsym]]
+                                                     [alias (find-ns nsym)])
+                                                   requires-macros)))))
+    {:env env :op :ns :name ns-name :requires requires :requires-macros requires-macros}))
 
 (defn analyze-invoke
   [env [f & args]]
