@@ -141,7 +141,7 @@
 (deftest emit-loop-test
   (testing "loop"
     (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
-                 (emits-expr '(loop [x 1] x))))))
+                 (emits-expr '(loop* [x 1] x))))))
 
 (deftest emit-recur-test
   (testing "fn-recur"
@@ -150,7 +150,7 @@
 
   (testing "loop-recur"
     (is (matches #"\{\n\tlet (x__\d+) = 1;\n\nloop \{\n\1\nbreak;\n\}\n\}"
-                 (emits-expr '(loop [x 1] x))))))
+                 (emits-expr '(loop* [x 1] x))))))
 
 (deftest emit-new-test
   (testing "new"
