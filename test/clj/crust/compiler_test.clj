@@ -175,6 +175,17 @@
            (emits-expr '(ns foo.bar
                           (:require [baz.bar :as baz.bar])))))))
 
+(deftest emit-deftype*-test
+  (testing "deftype*"
+    (is (= "struct Foo {\n}\n"
+           (emits-expr '(deftype* Foo []))))
+
+    (is (= "struct Foo {\n\ta: u8,\n}\n"
+           (emits-expr '(deftype* Foo [^u8 a]))))
+
+    (is (= "struct Foo {\n\ta: u8,\n\tb: i32,\n}\n"
+           (emits-expr '(deftype* Foo [^u8 a ^i32 b]))))))
+
 (deftest macro-test
   (testing "fn macro"
     (is (= "|x| {\n\tx\n}\n"

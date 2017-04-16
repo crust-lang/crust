@@ -156,11 +156,18 @@
                    (vals requires))]
     (println (str "use " lib ";"))))
 
+(defmethod emit :deftype*
+  [{:keys [t fields]}]
+  (print (str "struct " t " {\n"))
+  (doseq [fld fields]
+    (print (str "\t" (:name fld) ": " (:type fld) ",\n")))
+  (print "}\n"))
+
 
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop* recur new set! ns})
+  '#{if def fn* do let* loop* recur new set! ns deftype*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -367,6 +374,18 @@
                                                      [alias (find-ns nsym)])
                                                    requires-macros)))))
     {:env env :op :ns :name ns-name :requires requires :requires-macros requires-macros}))
+
+(defmethod parse 'deftype*
+  [_ env [_ tsym fields] _]
+  (let [enve (assoc env :context :ctx/expr)
+        t (:name (resolve-var (dissoc env :locals) tsym))
+        fields (map (fn [field-sym]
+                      (let [type (-> field-sym meta :tag)]
+                       (assert type "All fields in a struct must have a type associated with them")
+                       {:name field-sym :type (:tag (meta field-sym))}))
+                    fields)]
+    (swap! namespaces assoc-in [(-> env :ns :name) :defs tsym] name)
+    {:env enve :op :deftype* :t t :fields fields}))
 
 (defn analyze-invoke
   [env [f & args]]
