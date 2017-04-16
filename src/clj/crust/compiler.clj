@@ -400,7 +400,7 @@
         (when-not (-> env :locals sym)  ;locals hide macros
           (if-let [nstr (namespace sym)]
             (when-let [nsym (if (= "clojure.core" nstr)
-                              'crust.core
+                              'clojure.core  ;; FIXME: both these refs to clojure.core should be to crust.core eventually
                               (-> env :ns :requires-macros (symbol nstr)))]
               (.findInternedVar (find-ns nsym) (symbol (name sym))))
             (.findInternedVar (find-ns 'clojure.core) sym)))]

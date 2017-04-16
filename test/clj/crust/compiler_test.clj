@@ -187,6 +187,11 @@
            (emits-expr '(deftype* Foo [^u8 a ^i32 b]))))))
 
 (deftest macro-test
-  (testing "fn macro"
+  (testing "fn"
     (is (= "|x| {\n\tx\n}\n"
-           (emits-expr '(fn [x] x))))))
+           (emits-expr '(fn [x] x)))))
+
+  (testing "cond"
+    (is (= "if true {\n\t1} else {\n\tif false {\n\t2} else {\n\t()}\n}\n"
+           (emits-expr '(cond true 1
+                              false 2))))))
