@@ -27,6 +27,9 @@
           :else sym)]
     {:name nm}))
 
+(defn- comma-sep [xs]
+  (str/join "," xs))
+
 (defmulti emit-constant class)
 
 (defmethod emit-constant nil [x] (print "()"))
@@ -43,7 +46,7 @@
 (defn emit-block
   [context statements ret]
   (if statements
-    (let [body (str "\t" (apply str (interpose "\t" (map emits statements)))
+    (let [body (str "\t" (comma-sep (map emits statements))
                     "\t" (emits ret))]
       (print body))
     (emit ret)))
@@ -66,7 +69,7 @@
   [{:keys [f args env]}]
   (emit-wrap env
              (print (str (emits f) "("
-                         (apply str (interpose "," (map emits args)))
+                         (comma-sep (map emits args))
                          ")"))))
 
 (defmethod emit :if
@@ -89,7 +92,7 @@
   ;;fn statements get erased, serve no purpose and can pollute scope if named
   (when-not (= :ctx/statement (:context env))
     (emit-wrap env
-               (print (str "|" (apply str (interpose "," params)) "| {\n\t"))
+               (print (str "|" (comma-sep params) "| {\n\t"))
                (when recurs (print "loop {\n"))
                (emit body)
                (when recurs (print "break;\n}\n"))
@@ -100,7 +103,7 @@
   (if statements
     (do
       (print "{\n")
-      (let [body (str "\t" (apply str (interpose "\t" (map emits statements)))
+      (let [body (str "\t" (comma-sep (map emits statements))
                       "\t" (emits ret))]
         (print body))
       (print "}\n"))
@@ -138,10 +141,9 @@
   [{:keys [ctor args env]}]
   (emit-wrap env
              (print (str (emits ctor) " {"
-                         (apply str
-                                (interpose ","
-                                           (map #(str (first %) ": " (emits (second %)))
-                                                args)))
+                         (comma-sep
+                          (map #(str (first %) ": " (emits (second %)))
+                               args))
                          "}"))))
 
 (defmethod emit :set!
