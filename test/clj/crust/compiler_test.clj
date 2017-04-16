@@ -174,3 +174,8 @@
     (is (= "use baz::bar;\n"
            (emits-expr '(ns foo.bar
                           (:require [baz.bar :as baz.bar])))))))
+
+(deftest macro-test
+  (testing "fn macro"
+    (is (= "|x| {\n\tx\n}\n"
+           (emits-expr '(fn [x] x))))))

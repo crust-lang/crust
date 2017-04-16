@@ -375,8 +375,16 @@
      {:env env :op :invoke :f fexpr :args argexprs :children [:args :f]})))
 
 (defn get-expander [sym env]
-  (when-not (-> env :locals sym)
-    ))
+  (let [mvar
+        (when-not (-> env :locals sym)  ;locals hide macros
+          (if-let [nstr (namespace sym)]
+            (when-let [nsym (if (= "clojure.core" nstr)
+                              'crust.core
+                              (-> env :ns :requires-macros (symbol nstr)))]
+              (.findInternedVar (find-ns nsym) (symbol (name sym))))
+            (.findInternedVar (find-ns 'clojure.core) sym)))]
+    (when (and mvar (.isMacro mvar))
+      @mvar)))
 
 (defn analyze-seq
   [env form name]
@@ -385,7 +393,7 @@
     (if (specials op)
       (parse op env form name)
       (if-let [mac (and (symbol? op) (get-expander op env))]
-        (analyze (apply mac (rest form)))
+        (analyze env (apply mac form env (rest form)))
         (analyze-invoke env form)))))
 
 (def empty-env
