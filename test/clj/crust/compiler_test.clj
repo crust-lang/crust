@@ -115,12 +115,11 @@
     `(let [re# ~re
            result# ~form
            matches?# (re-matches re# result#)]
-       (do-report (merge {:message ~msg
-                          :expected (list '~'to-match re# '~form)
-                          :actual (list '~'does-not-match re# result#)}
-                         (if matches?#
-                           {:type :pass}
-                           {:type :fail})))
+       (do-report
+        {:message ~msg
+         :expected (list '~'to-match re# '~form)
+         :actual (list '~'does-not-match re# result#)
+         :type (if matches?# :pass :fail)})
        matches?#)))
 
 (deftest emit-let-test
