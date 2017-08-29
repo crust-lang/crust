@@ -1,4 +1,4 @@
-(ns crust.compiler
+(ns cljs.compiler
   (:require [clojure.string :as str]))
 
 (defonce namespaces (atom '{clrs.core {:name clrs.core}
