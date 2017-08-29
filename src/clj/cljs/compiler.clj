@@ -1,37 +1,50 @@
-(ns cljs.compiler
-  (:require [clojure.string :as str]))
+;   Copyright (c) Rich Hickey. All rights reserved.
+;   The use and distribution terms for this software are covered by the
+;   Eclipse Public License 1.0 (http://opensource.org/licenses/eclipse-1.0.php)
+;   which can be found in the file epl-v10.html at the root of this distribution.
+;   By using this software in any fashion, you are agreeing to be bound by
+;   the terms of this license.
+;   You must not remove this notice, or any other, from this software.
 
-(defonce namespaces (atom '{clrs.core {:name clrs.core}
-                            clrs.user {:name clrs.user}}))
+(ns cljs.compiler
+  (:require [clojure.string :as str])
+  )
+
+(defonce namespaces (atom '{cljs.core {:name cljs.core}
+                            cljs.user {:name cljs.user}}))
+
+;;todo - move to core.cljs, using js
+(def bootjs "
+cljs = {}
+cljs.core = {}
+cljs.user = {}
+cljs.core.truth_ = function(x){return x != null && x !== false;}
+cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$invoke);}")
 
 (defn- resolve-var [env sym]
   (let [s (str sym)
         lb (-> env :locals sym)
         nm
         (cond
-          lb (:name lb)
+         lb (:name lb)
 
-          ;;todo - resolve ns aliases when we have them
-          (namespace sym)
-          (symbol (str (str/replace (namespace sym) #"\." "::") "::" (name sym)))
+         ;;todo - resolve ns aliases when we have them
+         (namespace sym)
+         (symbol (str (str/replace (namespace sym) #"\." "::") "::" (name sym)))
 
-          (.contains s ".")
-          (let [idx (.indexOf s ".")
-                prefix (symbol (subs s 0 idx))
-                suffix (subs s idx)
-                lb (-> env :locals prefix)]
-            (if lb
-              (symbol (str (:name lb) suffix))
-              sym))
+         (.contains s ".")
+         (let [idx (.indexOf s ".")
+               prefix (symbol (subs s 0 idx))
+               suffix (subs s idx)
+               lb (-> env :locals prefix)]
+           (if lb
+             (symbol (str (:name lb) suffix))
+             sym))
 
           :else sym)]
     {:name nm}))
 
-(defn- comma-sep [xs]
-  (str/join "," xs))
-
 (defmulti emit-constant class)
-
 (defmethod emit-constant nil [x] (print "()"))
 (defmethod emit-constant Long [x] (print x))
 (defmethod emit-constant Double [x] (print x))
@@ -46,7 +59,7 @@
 (defn emit-block
   [context statements ret]
   (if statements
-    (let [body (str "\t" (comma-sep (map emits statements))
+    (let [body (str "\t" (apply str (interpose "\t" (map emits statements)))
                     "\t" (emits ret))]
       (print body))
     (emit ret)))
@@ -54,8 +67,8 @@
 (defmacro emit-wrap [env & body]
   `(let [env# ~env]
      ~@body
-     (when (= :ctx/statement (:context env#)) (print ";"))
-     (when-not (= :ctx/expr (:context env#)) (print "\n"))))
+     (when (= :statement (:context env#)) (print ";"))
+     (when-not (= :expr (:context env#)) (print "\n"))))
 
 (defmethod emit :var
   [{:keys [info env] :as arg}]
@@ -64,13 +77,6 @@
 (defmethod emit :constant
   [{:keys [form env]}]
   (emit-wrap env (emit-constant form)))
-
-(defmethod emit :invoke
-  [{:keys [f args env]}]
-  (emit-wrap env
-             (print (str (emits f) "("
-                         (comma-sep (map emits args))
-                         ")"))))
 
 (defmethod emit :if
   [{:keys [test then else env]}]
@@ -88,29 +94,26 @@
     (when-not (= :expr (:context env)) (print ";\n"))))
 
 (defmethod emit :fn
-  [{:keys [name params body env recurs]}]
+  [{:keys [name params statements ret env recurs]}]
   ;;fn statements get erased, serve no purpose and can pollute scope if named
-  (when-not (= :ctx/statement (:context env))
+  (when-not (= :statement (:context env))
     (emit-wrap env
-               (print (str "|" (comma-sep params) "| {\n\t"))
+               (print (str "|" (apply str (interpose "," params)) "| {\n"))
                (when recurs (print "loop {\n"))
-               (emit body)
+               (emit-block :return statements ret)
                (when recurs (print "break;\n}\n"))
-               (print "}\n"))))
+               (print "}"))))
 
 (defmethod emit :do
   [{:keys [statements ret env]}]
-  (if statements
-    (do
-      (print "{\n")
-      (let [body (str "\t" (comma-sep (map emits statements))
-                      "\t" (emits ret))]
-        (print body))
-      (print "}\n"))
-    (emit ret)))
+  (let [context (:context env)]
+    (when statements (print "{\n"))
+    (emit-block context statements ret)
+    (when statements (print "}"))
+    ))
 
 (defmethod emit :let
-  [{:keys [bindings body env loop]}]
+  [{:keys [bindings statements ret env loop]}]
   (let [context (:context env)
         bs (map (fn [{:keys [name init type mutable?]}]
                   (str "\tlet "
@@ -121,9 +124,10 @@
                 bindings)]
     (print (str "{\n" (apply str bs) "\n"))
     (when loop (print "loop {\n"))
-    (emit body)
+    (emit-block (if (= :expr context) :return context) statements ret)
     (when loop (print "break;\n}\n"))
-    (print "}")))
+    (print "}")
+    ))
 
 (defmethod emit :recur
   [{:keys [frame exprs env]}]
@@ -137,13 +141,20 @@
     (print "continue;\n")
     (print "}\n")))
 
+(defmethod emit :invoke
+  [{:keys [f args env]}]
+  (emit-wrap env
+             (print (str (emits f) "("
+                         (apply str (interpose "," (map emits args)))
+                         ")"))))
+
 (defmethod emit :new
   [{:keys [ctor args env]}]
   (emit-wrap env
              (print (str (emits ctor) " {"
-                         (comma-sep
-                          (map #(str (first %) ": " (emits (second %)))
-                               args))
+                         (apply str (interpose ","
+                                     (map #(str (emits (first %)) ": " (emits (second %)))
+                                          (partition 2 args))))
                          "}"))))
 
 (defmethod emit :set!
@@ -156,73 +167,53 @@
                    (vals requires))]
     (println (str "use " lib ";"))))
 
-(defmethod emit :deftype*
-  [{:keys [t fields]}]
-  (print (str "struct " t " {\n"))
-  (doseq [fld fields]
-    (print (str "\t" (:name fld) ": " (:type fld) ",\n")))
-  (print "}\n"))
+(declare analyze analyze-symbol)
 
-
-;; Parsing
-
-(def specials
-  '#{if def fn* do let* loop* recur new set! ns deftype*})
+(def specials '#{if def fn* do let* loop* recur new set! ns})
 
 (def ^:dynamic *recur-frame* nil)
 
 (defmacro disallowing-recur [& body]
   `(binding [*recur-frame* nil] ~@body))
 
-(declare analyze)
+(defn analyze-block
+  "returns {:statements .. :ret .. :children ..}"
+  [env exprs]
+  (let [statements (disallowing-recur
+                     (seq (map #(analyze (assoc env :context :statement) %) (butlast exprs))))
+        ret (if (<= (count exprs) 1)
+              (analyze env (first exprs))
+              (analyze (assoc env :context (if (= :statement (:context env)) :statement :return)) (last exprs)))]
+    {:statements statements :ret ret :children (vec (cons ret statements))}))
 
 (defmulti parse (fn [op & rest] op))
 
 (defmethod parse 'if
   [op env [_ test then else :as form] name]
-  (let [test-expr (disallowing-recur (analyze (assoc env :context :ctx/expr) test))
+  (let [test-expr (disallowing-recur (analyze (assoc env :context :expr) test))
         then-expr (analyze env then)
         else-expr (analyze env else)]
     {:env env :op :if :form form
      :test test-expr :then then-expr :else else-expr
-     :children [:test :then :else]}))
+     :children [test-expr then-expr else-expr]}))
 
 (defmethod parse 'def
-  [op env form _name]
-  (let [pfn (fn
-              ([_ sym] {:sym sym})
+  [op env form name]
+  (let [pfn (fn ([_ sym] {:sym sym})
               ([_ sym init] {:sym sym :init init})
               ([_ sym doc init] {:sym sym :doc doc :init init}))
         args (apply pfn form)
         sym (:sym args)]
     (assert (not (namespace sym)) "Can't def ns-qualified name")
     (assert (contains? (meta sym) :tag) "Must specify type for a static def")
-    (let [name (name sym)
-          init-expr (when (contains? args :init)
-                      (disallowing-recur
-                       (analyze (assoc env :context :ctx/expr) (:init args) sym)))]
+    (let [name (:name (resolve-var (dissoc env :locals) sym))
+          init-expr (when (contains? args :init) (disallowing-recur
+                                                  (analyze (assoc env :context :expr) (:init args) sym)))]
       (swap! namespaces assoc-in [(-> env :ns :name) :defs sym] name)
-      (merge {:env env
-              :op :def
+      (merge {:env env :op :def :form form
               :type (:tag (meta sym))
-              :form form
-              :name name
-              :doc (:doc args)
-              :init init-expr}
-             (when init-expr {:children [:init]})))))
-
-(defn analyze-block
-  "returns {:statements .. :ret .. :children ..}"
-  [env exprs]
-  (let [statements (disallowing-recur
-                    (seq (map #(analyze (assoc env :context :ctx/statement) %) (butlast exprs))))
-        ret (if (<= (count exprs) 1)
-              (analyze env (first exprs))
-              (analyze (assoc env :context (if (= :ctx/statement (:context env))
-                                             :ctx/statement
-                                             :ctx/return))
-                       (last exprs)))]
-    {:statements statements :ret ret :children [:statements :ret]}))
+              :name name :doc (:doc args) :init init-expr}
+             (when init-expr {:children [init-expr]})))))
 
 (defmethod parse 'fn*
   [op env [_ & args] name]
@@ -230,50 +221,43 @@
                (first args)
                name)
         meths (if (symbol? (first args))
-                (next args)
-                args)
+               (next args)
+               args)
         ;;turn (fn [] ...) into (fn ([]...))
         meths (if (vector? (first meths)) (list meths) meths)
         ;;todo, merge meths, switch on arguments.length
         meth (first meths)
         params (first meth)
+        fields (-> params meta ::fields)
         ;;todo, variadics
         params (remove '#{&} params)
         body (next meth)
-        locals (reduce (fn [m name] (assoc m name {:name name})) (:locals env) params)
+        locals (:locals env)
+        locals (if name (assoc locals name {:name name}) locals)
+        locals (reduce (fn [m fld] (assoc m fld {:name (symbol (str "self." fld))})) locals fields)
+        locals (reduce (fn [m name] (assoc m name {:name name})) locals params)
         recur-frame {:names (vec params) :flag (atom nil)}
-        body (binding [*recur-frame* recur-frame]
-               (analyze (assoc env :context :ctx/return :locals locals)
-                        (apply list 'do body)))]
+        block (binding [*recur-frame* recur-frame]
+                (analyze-block (assoc env :context :return :locals locals) body))]
     (assert (= 1 (count meths)) "Arity overloading not yet supported")
-    {:env env
-     :op :fn
-     :name name
-     :meths meths
-     :params params
-     :body body
-     :children [:body]
-     :recurs @(:flag recur-frame)}))
+    (merge {:env env :op :fn :name name :meths meths :params params :recurs @(:flag recur-frame)} block)))
 
 (defmethod parse 'do
   [op env [_ & exprs] _]
-  (merge {:env env :op :do}
-         (analyze-block env exprs)))
+  (merge {:env env :op :do} (analyze-block env exprs)))
 
 (defn analyze-let
   [encl-env [_ bindings & exprs :as form] is-loop]
-  (assert (and (vector? bindings) (even? (count bindings)))
-          "bindings must be vector of even number of elements")
+  (assert (and (vector? bindings) (even? (count bindings))) "bindings must be vector of even number of elements")
   (let [context (:context encl-env)
         [bes env]
         (disallowing-recur
          (loop [bes []
-                env (assoc encl-env :context :ctx/expr)
+                env (assoc encl-env :context :expr)
                 bindings (seq (partition 2 bindings))]
            (if-let [[name init] (first bindings)]
              (do
-               (assert (not (or (namespace name) (.contains (str name) ".")))
-                       (str "Invalid local name: " name))
+               (assert (not (or (namespace name) (.contains (str name) "."))) (str "Invalid local name: " name))
                (let [init-expr (analyze env init)
                      m (meta name)
                      be {:name (gensym (str name "__"))
@@ -285,20 +269,11 @@
                         (next bindings))))
              [bes env])))
         recur-frame (when is-loop {:names (vec (map :name bes)) :flag (atom nil)})
-        body
+        {:keys [statements ret children]}
         (binding [*recur-frame* (or recur-frame *recur-frame*)]
-          (analyze (assoc env :context (if (= :ctx/expr context)
-                                         :ctx/return
-                                         context))
-                   ;; Wrap the body exprs in a synthetic do-block
-                   (apply list 'do exprs)))]
-    {:env encl-env
-     :op :let
-     :loop is-loop
-     :bindings bes
-     :body body
-     :form form
-     :children [:bindings :body]}))
+          (analyze-block (assoc env :context (if (= :expr context) :return context)) exprs))]
+    {:env encl-env :op :let :loop is-loop
+     :bindings bes :statements statements :ret ret :form form :children (into [children] (map :init bes))}))
 
 (defmethod parse 'let*
   [op encl-env form _]
@@ -310,15 +285,60 @@
 
 (defmethod parse 'recur
   [op env [_ & exprs] _]
-  (assert *recur-frame* "Can't recur here")
-  (assert (= (count exprs) (count (:names *recur-frame*))) "recur argument count mismatch")
-  (reset! (:flag *recur-frame*) true)
-  (assoc {:env env :op :recur}
-         :frame *recur-frame*
-         :exprs (disallowing-recur
-                 (vec
-                  (map #(analyze (assoc env :context :ctx/expr) %)
-                       exprs)))))
+  (let [context (:context env)]
+    (assert *recur-frame* "Can't recur here")
+    (assert (= (count exprs) (count (:names *recur-frame*))) "recur argument count mismatch")
+    (reset! (:flag *recur-frame*) true)
+    (assoc {:env env :op :recur}
+      :frame *recur-frame*
+      :exprs (disallowing-recur (vec (map #(analyze (assoc env :context :expr) %) exprs))))))
+
+(defmethod parse 'new
+  [_ env [_ ctor & args] _]
+  (disallowing-recur
+   (let [enve (assoc env :context :expr)
+         ctorexpr (analyze enve ctor)
+         argexprs (vec (map #(analyze enve %) args))]
+     {:env env :op :new :ctor ctorexpr :args argexprs :children (conj argexprs ctorexpr)})))
+
+(defmethod parse 'set!
+  [_ env [_ target val] _]
+  (assert (symbol? target) "set! target must be a symbol naming var")
+  (assert (nil? (-> env :locals target)) "Can't set! local var")
+  (disallowing-recur
+   (let [enve (assoc env :context :expr)
+         targetexpr (analyze-symbol enve target)
+         valexpr (analyze enve val)]
+     {:env env :op :set! :target targetexpr :val valexpr :children [targetexpr valexpr]})))
+
+(defmethod parse 'ns
+  [_ env [_ name & args] _]
+  (let [{requires :require requires-macros :require-macros :as params}
+        (reduce (fn [m [k & libs]]
+                  (assoc m k (into {}
+                                   (map (fn [[lib as alias]]
+                                          (assert (and alias (= :as as)) "Only [lib.ns :as alias] form supported")
+                                          [alias lib])
+                                        libs))))
+                {} args)]
+    (doseq [nsym (vals requires-macros)]
+      (require nsym))
+    (swap! namespaces #(-> %
+                           (assoc-in [name :name] name)
+                           (assoc-in [name :requires] requires)
+                           (assoc-in [name :requires-macros]
+                                     (into {} (map (fn [[alias nsym]]
+                                                     [alias (find-ns nsym)])
+                                                   requires-macros)))))
+    {:env env :op :ns :name name :requires requires :requires-macros requires-macros}))
+
+(defn parse-invoke
+  [env [f & args]]
+  (disallowing-recur
+   (let [enve (assoc env :context :expr)
+         fexpr (analyze enve f)
+         argexprs (vec (map #(analyze enve %) args))]
+     {:env env :op :invoke :f fexpr :args argexprs :children (conj argexprs fexpr)})))
 
 (defn analyze-symbol
   "Finds the var associated with sym"
@@ -329,81 +349,15 @@
       (assoc ret :op :var :info lb)
       (assoc ret :op :var :info (resolve-var env sym)))))
 
-(defmethod parse 'new
-  [_ env [_ ctor & {:as args}] _]
-  (disallowing-recur
-   (let [enve (assoc env :context :ctx/expr)
-         ctorexpr (analyze enve ctor)
-         argexprs (zipmap
-                   (keys args)
-                   (map #(analyze enve %) (vals args)))]
-     {:env env :op :new :ctor ctorexpr :args argexprs :children [:args :ctor]})))
-
-(defmethod parse 'set!
-  [_ env [_ target val] _]
-  (assert (symbol? target) "set! target must be a symbol naming var")
-  (let [lb (-> env :locals target)]
-    (assert (:mutable? lb) "Can't set! a non-mutable binding"))
-  (disallowing-recur
-   (let [enve (assoc env :context :ctx/expr)
-         targetexpr (analyze-symbol enve target)
-         valexpr (analyze enve val)]
-     {:env env
-      :op :set!
-      :target targetexpr
-      :val valexpr
-      :children [:target :val]})))
-
-(defmethod parse 'ns
-  [_ env [_ ns-name & args] _]
-  (let [{requires :require requires-macros :require-macros :as all}
-        (reduce (fn [m [k & libs]]
-                  (assoc m k (into {}
-                                   (map (fn [[lib as alias]]
-                                          (assert (and alias (= :as as)) "Only [lib.ns :as alias] form is supported")
-                                          [alias lib])
-                                        libs))))
-                {} args)]
-    (doseq [nsym (vals requires-macros)]
-      (require nsym))
-    (swap! namespaces #(-> %
-                           (assoc-in [ns-name :name] ns-name)
-                           (assoc-in [ns-name :requires] requires)
-                           (assoc-in [ns-name :requires-macros]
-                                     (into {} (map (fn [[alias nsym]]
-                                                     [alias (find-ns nsym)])
-                                                   requires-macros)))))
-    {:env env :op :ns :name ns-name :requires requires :requires-macros requires-macros}))
-
-(defmethod parse 'deftype*
-  [_ env [_ tsym fields] _]
-  (let [enve (assoc env :context :ctx/expr)
-        t (:name (resolve-var (dissoc env :locals) tsym))
-        fields (map (fn [field-sym]
-                      (let [type (-> field-sym meta :tag)]
-                       (assert type "All fields in a struct must have a type associated with them")
-                       {:name field-sym :type (:tag (meta field-sym))}))
-                    fields)]
-    (swap! namespaces assoc-in [(-> env :ns :name) :defs tsym] name)
-    {:env enve :op :deftype* :t t :fields fields}))
-
-(defn analyze-invoke
-  [env [f & args]]
-  (disallowing-recur
-   (let [enve (assoc env :context :ctx/expr)
-         fexpr (analyze enve f)
-         argexprs (mapv #(analyze enve %) args)]
-     {:env env :op :invoke :f fexpr :args argexprs :children [:args :f]})))
-
 (defn get-expander [sym env]
   (let [mvar
         (when-not (-> env :locals sym)  ;locals hide macros
           (if-let [nstr (namespace sym)]
             (when-let [nsym (if (= "clojure.core" nstr)
-                              'clojure.core  ;; FIXME: both these refs to clojure.core should be to crust.core eventually
-                              (-> env :ns :requires-macros (symbol nstr)))]
+                            'cljs.core
+                            (-> env :ns :requires-macros (symbol nstr)))]
               (.findInternedVar (find-ns nsym) (symbol (name sym))))
-            (.findInternedVar (find-ns 'clojure.core) sym)))]
+            (.findInternedVar (find-ns 'cljs.core) sym)))]
     (when (and mvar (.isMacro mvar))
       @mvar)))
 
@@ -415,11 +369,11 @@
       (parse op env form name)
       (if-let [mac (and (symbol? op) (get-expander op env))]
         (analyze env (apply mac form env (rest form)))
-        (analyze-invoke env form)))))
+        (parse-invoke env form)))))
 
 (def empty-env
   {:ns (@namespaces 'crust.user)
-   :context :ctx/return
+   :context :return
    :locals {}})
 
 (defn analyze
@@ -431,10 +385,76 @@
   facilitate code walking without knowing the details of the op set."
   ([env form] (analyze env form nil))
   ([env form name]
-   (let [form (if (instance? clojure.lang.LazySeq form)
-                (or (seq form) ())
-                form)]
-     (cond
-       (symbol? form) (analyze-symbol env form)
-       (and (seq? form) (seq form)) (analyze-seq env form name)
-       :else {:op :constant :env env :form form}))))
+     (let [form (if (instance? clojure.lang.LazySeq form)
+                  (or (seq form) ())
+                  form)]
+       (cond
+        (symbol? form) (analyze-symbol env form)
+        (and (seq? form) (seq form)) (analyze-seq env form name)
+        :else {:op :constant :env env :form form}))))
+
+(comment
+(in-ns 'cljs.compiler)
+(import '[javax.script ScriptEngineManager])
+(def jse (-> (ScriptEngineManager.) (.getEngineByName "JavaScript")))
+(.eval jse bootjs)
+(def envx {:ns {:name 'test.ns} :context :return :locals '{ethel {:name ethel__123 :init nil}}})
+(analyze envx nil)
+(analyze envx 42)
+(analyze envx "foo")
+(analyze envx 'fred)
+(analyze envx 'fred.x)
+(analyze envx 'ethel)
+(analyze envx 'ethel.x)
+(analyze envx 'my.ns/fred)
+(analyze envx 'your.ns.fred)
+(analyze envx '(if test then else))
+(analyze envx '(if test then))
+(analyze envx '(and fred ethel))
+(analyze (assoc envx :context :statement) '(def test "fortytwo" 42))
+(analyze (assoc envx :context :expr) '(fn* ^{::fields [a b c]} [x y] a y x))
+(analyze (assoc envx :context :statement) '(let* [a 1 b 2] a))
+
+(analyze envx '(ns fred (:require [your.ns :as yn]) (:require-macros [clojure.core :as core])))
+(defmacro js [form]
+  `(emit (analyze {:ns {:name 'test.ns} :context :statement :locals {}} '~form)))
+
+(defn jseval [form]
+  (let [js (emits (analyze {:ns (@namespaces 'cljs.user) :context :expr :locals {}}
+                          form))]
+    (.eval jse (str "print(" js ")"))))
+
+(js (def foo (fn* ^{::fields [a b c]} [x y] (if true a (recur 1 x)))))
+(jseval '(def foo (fn* ^{::fields [a b c]} [x y] (if true a (recur 1 x)))))
+(js (defn foo [x y] (if true 46 (recur 1 x))))
+(jseval '(defn foo [x y] (if true 46 (recur 1 x))))
+(jseval '(foo 1 2))
+(js (and fred ethel))
+(jseval '(ns fred (:require [your.ns :as yn]) (:require-macros [clojure.core :as core])))
+(js (def x 42))
+(jseval '(def x 42))
+(jseval 'x)
+(jseval '(if 42 1 2))
+(jseval '(or 1 2))
+(jseval '(fn* [x y] (if true 46 (recur 1 x))))
+(.eval jse "print(test)")
+(.eval jse "undefined !== false")
+(js (def fred 42))
+
+(js (new foo.Bar 65))
+
+(doseq [e '[nil true false 42 "fred" fred ethel my.ns/fred your.ns.fred
+            (if test then "fooelse")
+            (def x 45)
+            (do x y y)
+            (fn* [x y] x y x)
+            (fn* [x y] (if true 46 (recur 1 x)))
+            (let* [a 1 b 2 a a] a b)
+            (do "do1")
+            (loop* [x 1 y 2] (if true 42 (do (recur 43 44))))
+            (my.foo 1 2 3)
+            (let* [a 1 b 2 c 3] (set! y.s.d b) (new fred.Ethel a b c))
+            ]]
+  (->> e (analyze envx) emit)
+  (newline))
+)

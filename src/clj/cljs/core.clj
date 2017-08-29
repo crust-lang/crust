@@ -28,10 +28,10 @@
             :imported))
 
 (import-macros clojure.core
-               [-> ->> ..  and assert comment cond condp
-                declare defmacro defn defn-
-                doto
-                extend-protocol extend-type fn for
-                if-let if-not let letfn loop
-                or
-                when when-first when-let when-not while])
+ [-> ->> ..  and assert comment cond condp
+  declare defmacro  defn defn-
+  doto
+  extend-protocol extend-type fn for
+  if-let if-not let letfn loop
+  or
+  when when-first when-let when-not while])
