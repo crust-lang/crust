@@ -44,6 +44,9 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
           :else sym)]
     {:name nm}))
 
+(defn- comma-sep [xs]
+  (apply str (interpose "," xs)))
+
 (defmulti emit-constant class)
 (defmethod emit-constant nil [x] (print "()"))
 (defmethod emit-constant Long [x] (print x))
@@ -98,7 +101,7 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
   ;;fn statements get erased, serve no purpose and can pollute scope if named
   (when-not (= :statement (:context env))
     (emit-wrap env
-               (print (str "|" (apply str (interpose "," params)) "| {\n"))
+               (print (str "|" (comma-sep params) "| {\n"))
                (when recurs (print "loop {\n"))
                (emit-block :return statements ret)
                (when recurs (print "break;\n}\n"))
@@ -145,16 +148,15 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
   [{:keys [f args env]}]
   (emit-wrap env
              (print (str (emits f) "("
-                         (apply str (interpose "," (map emits args)))
+                         (comma-sep (map emits args))
                          ")"))))
 
 (defmethod emit :new
   [{:keys [ctor args env]}]
   (emit-wrap env
              (print (str (emits ctor) " {"
-                         (apply str (interpose ","
-                                     (map #(str (emits (first %)) ": " (emits (second %)))
-                                          (partition 2 args))))
+                         (comma-sep (map #(str (emits (first %)) ": " (emits (second %)))
+                                         (partition 2 args)))
                          "}"))))
 
 (defmethod emit :set!
@@ -167,9 +169,16 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
                    (vals requires))]
     (println (str "use " lib ";"))))
 
+(defmethod emit :deftype*
+  [{:keys [t fields]}]
+  (print (str "struct " t " {\n"))
+  (doseq [fld fields]
+    (print (str "\t" (:name fld) ": " (:type fld) ",\n")))
+  (print "}\n"))
+
 (declare analyze analyze-symbol)
 
-(def specials '#{if def fn* do let* loop* recur new set! ns})
+(def specials '#{if def fn* do let* loop* recur new set! ns deftype*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -332,6 +341,18 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
                                                    requires-macros)))))
     {:env env :op :ns :name name :requires requires :requires-macros requires-macros}))
 
+(defmethod parse 'deftype*
+  [_ env [_ tsym fields] _]
+  (let [enve (assoc env :context :expr)
+        t (:name (resolve-var (dissoc env :locals) tsym))
+        fields (map (fn [field-sym]
+                      (let [type (-> field-sym meta :tag)]
+                        (assert type "All fields in a struct must have a type associated with them")
+                        {:name field-sym :type (:tag (meta field-sym))}))
+                    fields)]
+    (swap! namespaces assoc-in [(-> env :ns :name) :defs tsym] t)
+    {:env enve :op :deftype* :t t :fields fields}))
+
 (defn parse-invoke
   [env [f & args]]
   (disallowing-recur
@@ -417,11 +438,12 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
 
 (analyze envx '(ns fred (:require [your.ns :as yn]) (:require-macros [clojure.core :as core])))
 (defmacro js [form]
-  `(emit (analyze {:ns {:name 'test.ns} :context :statement :locals {}} '~form)))
+  `(emit (analyze {:ns (@namespaces 'cljs.user) :context :statement :locals {}} '~form)))
 
 (defn jseval [form]
   (let [js (emits (analyze {:ns (@namespaces 'cljs.user) :context :expr :locals {}}
-                          form))]
+                           form))]
+    ;;(prn js)
     (.eval jse (str "print(" js ")"))))
 
 (js (def foo (fn* ^{::fields [a b c]} [x y] (if true a (recur 1 x)))))
@@ -438,8 +460,13 @@ cljs.core.fnOf_ = function(f){return (f instanceof Function?f:f.cljs$core$Fn$inv
 (jseval '(or 1 2))
 (jseval '(fn* [x y] (if true 46 (recur 1 x))))
 (.eval jse "print(test)")
-(.eval jse "undefined !== false")
+(.eval jse "print(cljs.user.Foo)")
+(.eval jse  "print(cljs.user.Foo = function (){\n}\n)")
 (js (def fred 42))
+(js (deftype* Foo [a b c]))
+(jseval '(deftype* Foo [a b c]))
+(jseval '(new Foo 1 2 3))
+(.eval jse "print(new cljs.user.Foo(1, 2, 3).b)")
 
 (js (new foo.Bar 65))
 
