@@ -197,3 +197,10 @@
     (is (= "if true {\n\t1} else {\n\tif false {\n\t2} else {\n\t()}\n}\n"
            (emits-expr '(cond true 1
                               false 2))))))
+
+(deftest emit-dot-test
+  (testing "dot"
+    (is (= "x.y"
+           (emits-expr '(. x y))))
+    (is (= "x.y(z_arg)"
+           (emits-expr '(. x y z_arg))))))
