@@ -104,6 +104,14 @@
                           (fn* [x] x)
                           1))))))
 
+(deftest emit-defn*-test
+  (testing "defn*"
+    (is (= "fn main () {\n\t()\n}\n"
+           (emits-expr '(defn* main []))))
+    (is (= "fn main () {\n\tprintln!(\"Hello World!\")\n}\n"
+           (emits-expr '(defn* main []
+                          (rs/println! "Hello World!")))))))
+
 (deftest emit-do-test
   (testing "do"
     (is (= "{\n\tclrs.test.foo(10);\n\t1\n}\n"

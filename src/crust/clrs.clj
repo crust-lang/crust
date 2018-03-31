@@ -158,11 +158,16 @@
     (println (str "use " lib ";")))
   (println "\n}"))
 
+(defmethod emit :defn*
+  [{:keys [name body]}]
+  (print "fn" name "() {\n\t")
+  (emit body)
+  (println "}"))
 
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop recur new set! ns})
+  '#{if def fn* do let* loop recur new set! ns defn*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -204,6 +209,20 @@
               :doc (:doc args)
               :init init-expr}
              (when init-expr {:children [:init]})))))
+
+(defmethod parse 'defn*
+  [op env form name]
+  (let [body-forms (drop 3 form)
+        recur-frame {:names [] :flag (atom nil)}
+        body (binding [*recur-frame* recur-frame]
+               (analyze (assoc env :context :ctx/return :locals (:locals env))
+                        (apply list 'do body-forms)))]
+    {:env env
+     :op :defn*
+     :name (second form)
+     :form form
+     :body body
+     :children [:body]}))
 
 (defn analyze-block
   "returns {:statements .. :ret .. :children ..}"
