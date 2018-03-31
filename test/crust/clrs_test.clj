@@ -20,6 +20,9 @@
          {:ns 'clrs.test
           :context :ctx/expr}))
 
+(defmacro emits-expr [form]
+  `(sut/emits (sut/analyze test-expr-env ~form)))
+
 (deftest emit-var-test
   (testing "vars"
     (is (= "clrs.test.x"
@@ -30,10 +33,11 @@
            (sut/emits (sut/analyze test-ret-env 'z))))
 
     (is (= "clrs.user.foo"
-           (sut/emits (sut/analyze test-expr-env 'clrs.user/foo))))))
+           (sut/emits (sut/analyze test-expr-env 'clrs.user/foo)))))
 
-(defmacro emits-expr [form]
-  `(sut/emits (sut/analyze test-expr-env ~form)))
+  (testing "rust native ns vars"
+    (is (= "foo"
+           (emits-expr 'rs/foo)))))
 
 (deftest emit-constant-test
   (testing "nil"

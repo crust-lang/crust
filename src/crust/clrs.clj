@@ -10,6 +10,8 @@
         (cond
           lb (:name lb)
 
+          (= "rs" (namespace sym)) (subs s 3)
+
           ;;todo - resolve ns aliases when we have them
           (namespace sym)
           (symbol (str (namespace sym) "." (name sym)))
