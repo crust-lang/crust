@@ -16,8 +16,8 @@
           (namespace sym)
           (symbol (str (namespace sym) "." (name sym)))
 
-          (.contains s ".")
-          (let [idx (.indexOf s ".")
+          (str/includes? s ".")
+          (let [idx (str/index-of s ".")
                 prefix (symbol (subs s 0 idx))
                 suffix (subs s idx)
                 lb (-> env :locals prefix)]
@@ -285,7 +285,7 @@
                 bindings (seq (partition 2 bindings))]
            (if-let [[name init] (first bindings)]
              (do
-               (assert (not (or (namespace name) (.contains (str name) ".")))
+               (assert (not (or (namespace name) (str/includes? (str name) ".")))
                        (str "Invalid local name: " name))
                (let [init-expr (analyze env init)
                      m (meta name)
