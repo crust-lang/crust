@@ -76,7 +76,9 @@
     (is (= "if true {\n\t1} else {\n\t2}\n"
            (emits-expr '(if true 1 2))))
     (is (= "if false {\n\tclrs.test.x} else {\n\tclrs.test.y}\n"
-           (emits-expr '(if false x y))))))
+           (emits-expr '(if false x y))))
+    (is (= "if true {\n\t1} else {\n\t()}\n"
+           (emits-expr '(if true 1))))))
 
 (deftest emit-def-test
   (testing "def"
