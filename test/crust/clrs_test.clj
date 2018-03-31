@@ -170,9 +170,10 @@
 
 (deftest emit-ns-test
   (testing "ns"
-    (is (= ""
+    (is (= "mod foo {\n\t\n}\n"
+           (emits-expr '(ns foo))))
+    (is (= "mod foo.bar {\n\t\n}\n"
            (emits-expr '(ns foo.bar))))
-
-    (is (= "use baz::bar;\n"
+    (is (= "mod foo.bar {\n\tuse baz::bar;\n\n}\n"
            (emits-expr '(ns foo.bar
                           :requires {baz.bar baz.bar}))))))

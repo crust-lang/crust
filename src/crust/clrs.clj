@@ -150,9 +150,11 @@
 
 (defmethod emit :ns
   [{:keys [name requires macros env]}]
+  (print "mod" name "{\n\t")
   (doseq [lib (map #(str/replace % #"\." "::")
                    (vals requires))]
-    (println (str "use " lib ";"))))
+    (println (str "use " lib ";")))
+  (println "\n}"))
 
 
 ;; Parsing
