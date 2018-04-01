@@ -210,20 +210,6 @@
               :init init-expr}
              (when init-expr {:children [:init]})))))
 
-(defmethod parse 'defn*
-  [op env form name]
-  (let [body-forms (drop 3 form)
-        recur-frame {:names [] :flag (atom nil)}
-        body (binding [*recur-frame* recur-frame]
-               (analyze (assoc env :context :ctx/return :locals (:locals env))
-                        (apply list 'do body-forms)))]
-    {:env env
-     :op :defn*
-     :name (second form)
-     :form form
-     :body body
-     :children [:body]}))
-
 (defn analyze-block
   "returns {:statements .. :ret .. :children ..}"
   [env exprs]
@@ -237,15 +223,8 @@
                        (last exprs)))]
     {:statements statements :ret ret :children [:statements :ret]}))
 
-(defmethod parse 'fn*
-  [op env [_ & args] name]
-  (let [name (if (symbol? (first args))
-               (first args)
-               name)
-        meths (if (symbol? (first args))
-                (next args)
-                args)
-        ;;turn (fn [] ...) into (fn ([]...))
+(defn analyze-fn [op env meths name]
+  (let [;;turn (fn [] ...) into (fn ([]...))
         meths (if (vector? (first meths)) (list meths) meths)
         ;;todo, merge meths, switch on arguments.length
         meth (first meths)
@@ -260,13 +239,27 @@
                         (apply list 'do body)))]
     (assert (= 1 (count meths)) "Arity overloading not yet supported")
     {:env env
-     :op :fn
+     :op op
      :name name
      :meths meths
      :params params
      :body body
      :children [:body]
      :recurs @(:flag recur-frame)}))
+
+(defmethod parse 'fn*
+  [op env [_ & args] name]
+  (let [name (if (symbol? (first args))
+               (first args)
+               name)
+        meths (if (symbol? (first args))
+                (next args)
+                args)]
+    (analyze-fn :fn env meths name)))
+
+(defmethod parse 'defn*
+  [op env [_ name & args] name*]
+  (analyze-fn :defn* env args name))
 
 (defmethod parse 'do
   [op env [_ & exprs] _]
