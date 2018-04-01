@@ -86,12 +86,15 @@
     (print (str "static " name ": " type " = " (emits init)))
     (when-not (= :expr (:context env)) (print ";\n"))))
 
+(defn- format-param [{:keys [name type]}]
+  (str name (when type (str ": " type))))
+
 (defmethod emit :fn
   [{:keys [name params body env recurs]}]
   ;;fn statements get erased, serve no purpose and can pollute scope if named
   (when-not (= :ctx/statement (:context env))
     (emit-wrap env
-               (print (str "|" (apply str (interpose "," params)) "| {\n\t"))
+               (print (str "|" (apply str (interpose "," (map format-param params))) "| {\n\t"))
                (when recurs (print "loop {\n"))
                (emit body)
                (when recurs (print "break;\n}\n"))
@@ -132,7 +135,7 @@
     (dotimes [i (count exprs)]
       (print (str "\tlet " (temps i) " = " (emits (exprs i)) ";\n")))
     (dotimes [i (count exprs)]
-      (print (str (names i) " = " (temps i) ";\n")))
+      (print (str (:name (names i)) " = " (temps i) ";\n")))
     (print "continue;\n")
     (print "}\n")))
 
@@ -159,10 +162,15 @@
   (println "\n}"))
 
 (defmethod emit :defn*
-  [{:keys [name body]}]
-  (print "fn" name "() {\n\t")
-  (emit body)
-  (println "}"))
+  [{:keys [env name body params recurs]}]
+  (emit-wrap env
+             (print (str "fn " name "("
+                         (apply str (interpose "," (map format-param params)))
+                         ") {\n\t"))
+             (when recurs (print "loop {\n"))
+             (emit body)
+             (when recurs (print "break;\n}\n"))
+             (print "}\n")))
 
 ;; Parsing
 
@@ -230,9 +238,10 @@
         meth (first meths)
         params (first meth)
         ;;todo, variadics
-        params (remove '#{&} params)
+        params (map (fn [sym] {:name sym :type (:tag (meta sym))}) (remove '#{&} params))
         body (next meth)
-        locals (reduce (fn [m name] (assoc m name {:name name})) (:locals env) params)
+        append-arg (fn [m param] (assoc m (:name param) param))
+        locals (reduce append-arg (:locals env) params)
         recur-frame {:names (vec params) :flag (atom nil)}
         body (binding [*recur-frame* recur-frame]
                (analyze (assoc env :context :ctx/return :locals locals)

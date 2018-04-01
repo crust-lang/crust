@@ -96,7 +96,9 @@
     (is (= "|| {\n\t1\n}\n"
            (emits-expr '(fn* [] 1))))
     (is (= "|pay_attention| {\n\tpay_attention\n}\n"
-           (emits-expr '(fn* [pay_attention] pay_attention)))))
+           (emits-expr '(fn* [pay_attention] pay_attention))))
+    (is (= "|pay_attention: u8| {\n\tpay_attention\n}\n"
+           (emits-expr '(fn* [^u8 pay_attention] pay_attention)))))
 
   (testing "fn statements are elided"
     (is (= "{\n\t\t1\n}\n"
@@ -106,11 +108,13 @@
 
 (deftest emit-defn*-test
   (testing "defn*"
-    (is (= "fn main () {\n\t()\n}\n"
+    (is (= "fn main() {\n\t()\n}\n"
            (emits-expr '(defn* main []))))
-    (is (= "fn main () {\n\tprintln!(\"Hello World!\")\n}\n"
+    (is (= "fn main() {\n\tprintln!(\"Hello World!\")\n}\n"
            (emits-expr '(defn* main []
-                          (rs/println! "Hello World!")))))))
+                          (rs/println! "Hello World!")))))
+    (is (= "fn one(x: u8) {\n\tx\n}\n"
+           (emits-expr '(defn* one [^u8 x] x))))))
 
 (deftest emit-do-test
   (testing "do"
