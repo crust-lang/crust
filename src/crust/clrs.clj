@@ -142,12 +142,10 @@
 (defmethod emit :new
   [{:keys [ctor args env]}]
   (emit-wrap env
-     (print (str (emits ctor) " {"
-                 (apply str
-                    (interpose ","
-                       (map #(str (first %) ": " (emits (second %)))
-                          args)))
-                 "}"))))
+    (println (emits ctor) "{")
+    (doseq [[label value] args]
+      (println (str "\t" label ": " (emits value) ",")))
+    (println "}")))
 
 (defmethod emit :set!
   [{:keys [target val env]}]

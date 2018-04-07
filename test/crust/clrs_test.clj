@@ -173,11 +173,12 @@
 
 (deftest emit-new-test
   (testing "new"
-    (is (= "clrs.test.Foo {}"
+    (is (= "clrs.test.Foo {\n}\n"
            (emits-expr '(new Foo))))
-
-    (is (= "clrs.test.Foo {x: 1}"
-           (emits-expr '(new Foo x 1))))))
+    (is (= "clrs.test.Foo {\n\tx: 1,\n}\n"
+           (emits-expr '(new Foo x 1))))
+    (is (= "clrs.test.Foo {\n\tx: 1,\n\ty: 2,\n}\n"
+           (emits-expr '(new Foo x 1 y 2))))))
 
 (deftest emit-set!-test
   (testing "set!"
