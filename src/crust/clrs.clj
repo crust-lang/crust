@@ -176,9 +176,8 @@
   [{:keys [env name fields]}]
   (emit-wrap env
     (println "pub struct" name "{")
-    (print "\t")
     (doseq [{:keys [private label type]} fields]
-      (println (str (when private "priv ") label ": " type ",")))
+      (println (str "\t" (when private "priv ") label ": " type ",")))
     (println "}")))
 
 (defmethod emit :defenum*
