@@ -153,10 +153,10 @@
 
 (defmethod emit :ns
   [{:keys [name requires macros env]}]
-  (print "mod" name "{\n\t")
+  (println "mod" name "{")
   (doseq [lib (map #(str/replace % #"\." "::")
                    (vals requires))]
-    (println (str "use " lib ";")))
+    (println (str "\tuse " lib ";")))
   (println "\n}"))
 
 (defmethod emit :defn*

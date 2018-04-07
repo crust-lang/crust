@@ -188,13 +188,17 @@
 
 (deftest emit-ns-test
   (testing "ns"
-    (is (= "mod foo {\n\t\n}\n"
+    (is (= "mod foo {\n\n}\n"
            (emits-expr '(ns foo))))
-    (is (= "mod foo.bar {\n\t\n}\n"
+    (is (= "mod foo.bar {\n\n}\n"
            (emits-expr '(ns foo.bar))))
     (is (= "mod foo.bar {\n\tuse baz::bar;\n\n}\n"
            (emits-expr '(ns foo.bar
-                          :requires {baz.bar baz.bar}))))))
+                          :requires {baz.bar baz.bar}))))
+    (is (= "mod foo.bar {\n\tuse baz::bar;\n\tuse quu::qux;\n\n}\n"
+           (emits-expr '(ns foo.bar
+                          :requires {baz.bar baz.bar
+                                     quu.qux quu.qux}))))))
 
 (deftest emit-defstruct*-test
   (testing "defstruct*"
