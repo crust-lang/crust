@@ -1,0 +1,6 @@
+(ns crust.core
+  :requires {std.unstable.intrinsics.TyDesc     std.unstable.intrinsics.TyDesc
+             std.unstable.intrinsics.get_tydesc std.unstable.intrinsics.get_tydesc
+             std.unstable.intrinsics.forget     std.unstable.intrinsics.forget
+             std.util.Void                      std.util.Void
+             std.cast.transmute                 std.cast.transmute})
