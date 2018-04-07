@@ -195,6 +195,11 @@
            (emits-expr '(ns foo.bar
                           :requires {baz.bar baz.bar}))))))
 
+(deftest emit-defstruct*-test
+  (testing "defstruct*"
+    (is (= "pub struct Foo {\n\t\n}\n"
+           (emits-expr '(defstruct* Foo))))))
+
 (deftest emit-core
   (spit "target/core.rs"
         (with-open [core (java.io.PushbackReader. (io/reader "src/crust/core.clrs"))]

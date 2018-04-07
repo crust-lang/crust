@@ -172,10 +172,17 @@
              (when recurs (print "break;\n}\n"))
              (print "}\n")))
 
+(defmethod emit :defstruct*
+  [{:keys [env name]}]
+  (emit-wrap env
+    (println "pub struct" name "{")
+    (println "\t")
+    (println "}")))
+
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop recur new set! ns defn*})
+  '#{if def fn* do let* loop recur new set! ns defn* defstruct*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -381,6 +388,13 @@
                            (assoc-in [ns-name :name] ns-name)
                            (assoc-in [ns-name :deps] deps))))
   (merge {:env env :op :ns :name ns-name} params))
+
+(defmethod parse 'defstruct*
+  [_ env [_ name] _]
+  {:env env
+   :op :defstruct*
+   :name name
+   })
 
 (defn analyze-invoke
   [env [f & args]]
