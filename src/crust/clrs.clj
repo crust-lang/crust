@@ -142,12 +142,12 @@
 (defmethod emit :new
   [{:keys [ctor args env]}]
   (emit-wrap env
-             (print (str (emits ctor) " {"
-                         (apply str
-                                (interpose ","
-                                           (map #(str (first %) ": " (emits (second %)))
-                                                args)))
-                         "}"))))
+     (print (str (emits ctor) " {"
+                 (apply str
+                    (interpose ","
+                       (map #(str (first %) ": " (emits (second %)))
+                          args)))
+                 "}"))))
 
 (defmethod emit :set!
   [{:keys [target val env]}]
@@ -164,31 +164,31 @@
 (defmethod emit :defn*
   [{:keys [env name body params recurs]}]
   (emit-wrap env
-             (print (str "fn " name "("
-                         (apply str (interpose "," (map format-param params)))
-                         ") {\n\t"))
-             (when recurs (print "loop {\n"))
-             (emit body)
-             (when recurs (print "break;\n}\n"))
-             (print "}\n")))
+     (print (str "fn " name "("
+                 (apply str (interpose "," (map format-param params)))
+                 ") {\n\t"))
+     (when recurs (print "loop {\n"))
+     (emit body)
+     (when recurs (print "break;\n}\n"))
+     (print "}\n")))
 
 (defmethod emit :defstruct*
   [{:keys [env name fields private]}]
   (emit-wrap env
-    (println (str (when-not private "pub ") "struct") name "{")
-    (doseq [{:keys [private label type]} fields]
-      (println (str "\t" (when private "priv ") label ": " type ",")))
-    (println "}")))
+     (println (str (when-not private "pub ") "struct") name "{")
+     (doseq [{:keys [private label type]} fields]
+       (println (str "\t" (when private "priv ") label ": " type ",")))
+     (println "}")))
 
 (defmethod emit :defenum*
   [{:keys [env name variants private]}]
   (emit-wrap env
-             (println (str (when-not private "pub ") "enum") name "{")
-             (doseq [{:keys [name values]} variants
-                     :let [vals (when values
-                                  (str "(" (str/join ", " values) ")"))]]
-               (println (str "\t" name vals ",")))
-             (println "}")))
+     (println (str (when-not private "pub ") "enum") name "{")
+     (doseq [{:keys [name values]} variants
+             :let [vals (when values
+                          (str "(" (str/join ", " values) ")"))]]
+       (println (str "\t" name vals ",")))
+     (println "}")))
 
 ;; Parsing
 
