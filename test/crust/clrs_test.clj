@@ -199,6 +199,8 @@
   (testing "defstruct*"
     (is (= "pub struct Foo {\n}\n"
            (emits-expr '(defstruct* Foo))))
+    (is (= "struct Foo {\n}\n"
+           (emits-expr '(defstruct* ^:private Foo))))
     (is (= "pub struct Foo {\n\tx: uint,\n}\n"
            (emits-expr '(defstruct* Foo [x uint]))))
     (is (= "pub struct Foo {\n\tx: uint,\n\ty: Box<foo>,\n}\n"
@@ -210,6 +212,8 @@
   (testing "defenum*"
     (is (= "pub enum Foo {\n}\n"
            (emits-expr '(defenum* Foo))))
+    (is (= "enum Foo {\n}\n"
+           (emits-expr '(defenum* ^:private Foo))))
     (is (= "pub enum Foo {\n\tV1,\n\tV2,\n}\n"
            (emits-expr '(defenum* Foo V1 V2))))
     (is (= "pub enum Foo {\n\tV1(uint),\n}\n"

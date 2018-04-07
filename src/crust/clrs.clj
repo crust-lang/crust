@@ -173,17 +173,17 @@
              (print "}\n")))
 
 (defmethod emit :defstruct*
-  [{:keys [env name fields]}]
+  [{:keys [env name fields private]}]
   (emit-wrap env
-    (println "pub struct" name "{")
+    (println (str (when-not private "pub ") "struct") name "{")
     (doseq [{:keys [private label type]} fields]
       (println (str "\t" (when private "priv ") label ": " type ",")))
     (println "}")))
 
 (defmethod emit :defenum*
-  [{:keys [env name variants]}]
+  [{:keys [env name variants private]}]
   (emit-wrap env
-             (println "pub enum" name "{")
+             (println (str (when-not private "pub ") "enum") name "{")
              (doseq [{:keys [name values]} variants
                      :let [vals (when values
                                   (str "(" (str/join ", " values) ")"))]]
@@ -415,6 +415,7 @@
     {:env env
      :op :defstruct*
      :name name
+     :private (:private (meta name))
      :fields fields}))
 
 (defn analyze-variant [variant]
@@ -430,6 +431,7 @@
     {:env env
      :op :defenum*
      :name name
+     :private (:private (meta name))
      :variants variants}))
 
 (defn analyze-invoke
