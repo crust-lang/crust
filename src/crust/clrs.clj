@@ -173,10 +173,12 @@
              (print "}\n")))
 
 (defmethod emit :defstruct*
-  [{:keys [env name]}]
+  [{:keys [env name fields]}]
   (emit-wrap env
     (println "pub struct" name "{")
-    (println "\t")
+    (print "\t")
+    (doseq [{:keys [private label type]} fields]
+      (println (str (when private "priv ") label ": " type ",")))
     (println "}")))
 
 ;; Parsing
@@ -389,12 +391,19 @@
                            (assoc-in [ns-name :deps] deps))))
   (merge {:env env :op :ns :name ns-name} params))
 
+(defn- analyze-struct-field [[label type]]
+  (let [private (:private (meta label))]
+    {:label label
+     :type type
+     :private private}))
+
 (defmethod parse 'defstruct*
-  [_ env [_ name] _]
-  {:env env
-   :op :defstruct*
-   :name name
-   })
+  [_ env [_ name fields] _]
+  (let [fields (map analyze-struct-field (partition 2 fields))]
+    {:env env
+     :op :defstruct*
+     :name name
+     :fields fields}))
 
 (defn analyze-invoke
   [env [f & args]]

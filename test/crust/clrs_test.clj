@@ -197,8 +197,14 @@
 
 (deftest emit-defstruct*-test
   (testing "defstruct*"
-    (is (= "pub struct Foo {\n\t\n}\n"
-           (emits-expr '(defstruct* Foo))))))
+    (is (= "pub struct Foo {\n\t}\n"
+           (emits-expr '(defstruct* Foo))))
+    (is (= "pub struct Foo {\n\tx: uint,\n}\n"
+           (emits-expr '(defstruct* Foo [x uint]))))
+    (is (= "pub struct Foo {\n\tx: uint,\ny: Box<foo>,\n}\n"
+           (emits-expr '(defstruct* Foo [x uint y Box<foo>]))))
+    (is (= "pub struct Foo {\n\tpriv x: uint,\n}\n"
+           (emits-expr '(defstruct* Foo [^:private x uint]))))))
 
 (deftest emit-core
   (spit "target/core.rs"
