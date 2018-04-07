@@ -211,7 +211,9 @@
     (is (= "pub enum Foo {\n}\n"
            (emits-expr '(defenum* Foo))))
     (is (= "pub enum Foo {\n\tV1,\n\tV2,\n}\n"
-           (emits-expr '(defenum* Foo V1 V2))))))
+           (emits-expr '(defenum* Foo V1 V2))))
+    (is (= "pub enum Foo {\n\tV1(uint),\n}\n"
+           (emits-expr '(defenum* Foo [V1 uint]))))))
 
 (deftest emit-core
   (with-open [core (java.io.PushbackReader. (io/reader "src/crust/core.clrs"))

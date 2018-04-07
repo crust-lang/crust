@@ -185,8 +185,10 @@
   [{:keys [env name variants]}]
   (emit-wrap env
              (println "pub enum" name "{")
-             (doseq [{:keys [value]} variants]
-               (println (str "\t" value ",")))
+             (doseq [{:keys [name values]} variants
+                     :let [vals (when values
+                                  (str "(" (str/join ", " values) ")"))]]
+               (println (str "\t" name vals ",")))
              (println "}")))
 
 ;; Parsing
@@ -416,9 +418,16 @@
      :name name
      :fields fields}))
 
+(defn analyze-variant [variant]
+  (cond
+    (symbol? variant) {:name variant}
+    (vector? variant) {:name (first variant)
+                       :values (rest variant)
+                       }))
+
 (defmethod parse 'defenum*
   [_ env [_ name & variants] _]
-  (let [variants (map (fn [variant] {:value variant}) variants)]
+  (let [variants (map analyze-variant variants)]
     {:env env
      :op :defenum*
      :name name
