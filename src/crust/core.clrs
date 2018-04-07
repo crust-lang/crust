@@ -4,3 +4,6 @@
              std.unstable.intrinsics.forget     std.unstable.intrinsics.forget
              std.util.Void                      std.util.Void
              std.cast.transmute                 std.cast.transmute})
+
+(defstruct* TypeId
+  [^:private t *TyDesc])

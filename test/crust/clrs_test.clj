@@ -206,7 +206,13 @@
     (is (= "pub struct Foo {\n\tpriv x: uint,\n}\n"
            (emits-expr '(defstruct* Foo [^:private x uint]))))))
 
+
 (deftest emit-core
-  (spit "target/core.rs"
-        (with-open [core (java.io.PushbackReader. (io/reader "src/crust/core.clrs"))]
-          (sut/emits (sut/analyze sut/empty-env (read core))))))
+  (with-open [core (java.io.PushbackReader. (io/reader "src/crust/core.clrs"))
+              out-file  (io/writer "target/core.rs")]
+    (binding [*out* out-file]
+      (let [forms (->> #(read core false nil)
+                       repeatedly
+                       (take-while identity))]
+        (doseq [form forms]
+          (sut/emit (sut/analyze sut/empty-env form)))))))
