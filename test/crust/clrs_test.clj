@@ -1,5 +1,6 @@
 (ns crust.clrs-test
   (:require [crust.clrs :as sut]
+            [clojure.java.io :as io]
             [clojure.test :refer :all]))
 
 (def test-env
@@ -193,3 +194,8 @@
     (is (= "mod foo.bar {\n\tuse baz::bar;\n\n}\n"
            (emits-expr '(ns foo.bar
                           :requires {baz.bar baz.bar}))))))
+
+(deftest emit-core
+  (spit "target/core.rs"
+        (with-open [core (java.io.PushbackReader. (io/reader "src/crust/core.clrs"))]
+          (sut/emits (sut/analyze sut/empty-env (read core))))))
