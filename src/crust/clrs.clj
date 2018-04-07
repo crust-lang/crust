@@ -181,10 +181,21 @@
       (println (str (when private "priv ") label ": " type ",")))
     (println "}")))
 
+(defmethod emit :defenum*
+  [{:keys [env name variants]}]
+  (emit-wrap env
+             (println "pub enum" name "{")
+             (doseq [{:keys [value]} variants]
+               (println (str "\t" value ",")))
+             (println "}")))
+
 ;; Parsing
 
 (def specials
-  '#{if def fn* do let* loop recur new set! ns defn* defstruct*})
+  '#{if def fn* do let*
+     loop recur new set!
+     ns defn* defstruct*
+     defenum*})
 
 (def ^:dynamic *recur-frame* nil)
 
@@ -404,6 +415,14 @@
      :op :defstruct*
      :name name
      :fields fields}))
+
+(defmethod parse 'defenum*
+  [_ env [_ name & variants] _]
+  (let [variants (map (fn [variant] {:value variant}) variants)]
+    {:env env
+     :op :defenum*
+     :name name
+     :variants variants}))
 
 (defn analyze-invoke
   [env [f & args]]

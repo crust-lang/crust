@@ -206,6 +206,12 @@
     (is (= "pub struct Foo {\n\tpriv x: uint,\n}\n"
            (emits-expr '(defstruct* Foo [^:private x uint]))))))
 
+(deftest emit-defenum*-test
+  (testing "defenum*"
+    (is (= "pub enum Foo {\n}\n"
+           (emits-expr '(defenum* Foo))))
+    (is (= "pub enum Foo {\n\tV1,\n\tV2,\n}\n"
+           (emits-expr '(defenum* Foo V1 V2))))))
 
 (deftest emit-core
   (with-open [core (java.io.PushbackReader. (io/reader "src/crust/core.clrs"))
